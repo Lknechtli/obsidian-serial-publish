@@ -202,20 +202,24 @@ local function convert_callout(callout_type, title, bq_content)
   -- Split on <br /> and wrap each line in a block span for consistent text-indent
   local lines = {}
   local parts = {}
-  local tmp = rendered_body
-  while true do
-    local pos = tmp:find("<br />")
-    if not pos then
-      table.insert(parts, tmp)
-      break
+  local tmp = rendered_body:gsub("^%s*$", ""):gsub("%s+$", "")
+  if #tmp > 0 then
+    while true do
+      local pos = tmp:find("<br />")
+      if not pos then
+        table.insert(parts, tmp)
+        break
+      end
+      table.insert(parts, tmp:sub(1, pos - 1))
+      tmp = tmp:sub(pos + 6)
     end
-    table.insert(parts, tmp:sub(1, pos - 1))
-    tmp = tmp:sub(pos + 6)
+    for _, line in ipairs(parts) do
+      table.insert(lines, '<span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">' .. line .. '</span>')
+    end
+    rendered_body = table.concat(lines)
+  else
+    rendered_body = ""
   end
-  for _, line in ipairs(parts) do
-    table.insert(lines, '<span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">' .. line .. '</span>')
-  end
-  rendered_body = table.concat(lines)
 
   -- Build table HTML (RR-safe, no <pre> tags) — outer padding only, title + body as two rows
   local border_style = 'border:4px solid ' .. color .. '!important'
@@ -225,21 +229,23 @@ local function convert_callout(callout_type, title, bq_content)
     border_style = border_style .. shadow_style .. 'border: 4px solid #f44336!important;'
   end
 
-  local table_html = '<div style="max-width:90ch!important;margin:auto;"><table style="background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. shadow_style .. border_style .. '">'
+  -- Trim whitespace-only body to avoid rendering empty rows
+  rendered_body = rendered_body:gsub("^%s*$", "")
+  local has_body = (#rendered_body > 0)
+  local table_html = '<div style="max-width:90ch!important;margin:auto;"><table style="border-collapse:collapse!important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px!important;' .. shadow_style .. border_style .. '">'
 
   -- Title row (if present)
   if title then
     local esc_title = title:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
-    local has_body = (#rendered_body > 0)
-    local bottom_border = has_body and ('border-bottom:2px solid ' .. color .. '!important') or 'border-bottom:0!important'
-    table_html = table_html .. '<tr><td colspan="2" style="color:' .. color .. '!important;font-weight:bold!important;padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;' .. bottom_border .. '">' .. esc_title .. '</td></tr>'
+    local bottom_border = has_body and ('border-bottom:2px solid ' .. color .. '!important') or ''
+    table_html = table_html .. '<tr><td style="color:' .. color .. '!important;font-weight:bold!important;padding:0.5em 1em!important;border:none!important;' .. bottom_border .. '">' .. esc_title .. '</td></tr>'
   end
 
   -- Body row (single row with <br /> preserving line separation)
-  if #rendered_body > 0 then
+  if has_body then
     -- Only escape bare ampersands, preserve existing HTML tags from inline_to_html()
     local esc_body = rendered_body:gsub("&([^;])", function(c) return "&amp;" .. c end)
-    table_html = table_html .. '<tr><td colspan="2" style="padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;border-bottom:0!important;">' .. esc_body .. '</td></tr>'
+    table_html = table_html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;">' .. esc_body .. '</td></tr>'
   end
 
   return pandoc.RawBlock("html", table_html .. '</tbody></table>')
