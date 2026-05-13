@@ -91,6 +91,23 @@ local function convert_callout(callout_type, title, bq_content)
       return '<img src="' .. src:gsub('"','&quot;') .. '" alt="' .. alt_text:gsub('"','&quot;') .. '">'
     end
     if el.t == "RawInline" and el.format == "html" then return el.text or "" end
+    if el.t == "Span" and el.content then
+      local inner = ""
+      for _, child in ipairs(el.content) do
+        inner = inner .. inline_to_html(child)
+      end
+      local attrs = el.attributes or el.attr or {}
+      local data_attrs = ""
+      for k, v in pairs(attrs) do
+        if k:match("^data-") then
+          data_attrs = data_attrs .. ' ' .. k .. '="' .. v .. '"'
+        end
+      end
+      if #data_attrs > 0 then
+        return '<span' .. data_attrs .. '>' .. inner .. '</span>'
+      end
+      return inner
+    end
     local txt = pandoc.utils.stringify(el):gsub("^%s+", ""):gsub("%s+$", "")
     return #txt > 0 and txt or ""
   end
@@ -176,6 +193,11 @@ local function convert_callout(callout_type, title, bq_content)
 
   -- Convert markdown checkboxes to unicode: - [ ] → ☐, - [x] → ☑
   rendered_body = rendered_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
+
+  -- Convert <span data-glitch="">text</span> to bold + chromatic aberration text-shadow
+  rendered_body = rendered_body:gsub("<span%s+([^>]*)data%-glitch=\"\"([^>]*)>(.-)</span>", function(pre, post, inner)
+    return '<b style="text-shadow:-1px 0 0 rgba(255,0,0,0.7),1px 0 0 rgba(0,255,255,0.7)!important;">' .. inner .. '</b>'
+  end)
 
   -- Split on <br /> and wrap each line in a block span for consistent text-indent
   local lines = {}
