@@ -497,6 +497,7 @@ return {
 
       local elem = para.content[i]
 
+
       if elem.t == "Str" and elem.text then
 
         local text = elem.text
@@ -629,13 +630,11 @@ return {
 
     if s ~= str.text then return pandoc.Str(s) end
 
-    
 
     -- Delete wiki link patterns [[Text]] in Str nodes (when wikilinks extension is NOT used)
 
     if s:match("^%[%[.-%]%]$") then return {} end
 
-    
 
     return str
 
@@ -645,13 +644,49 @@ return {
 
   -- Pass through links: Royal Road supports <a href=""> tags natively
 
+  -- Strip HTML comments (<!-- ... -->) from block-level raw HTML
+  RawBlock = function(rb)
+    if rb.format == "html" and rb.text:match("^%s*<!%-%-") then
+      return pandoc.RawBlock("html", "")
+    end
+    return rb
+  end,
+
+  -- Strip HTML comments (<!-- ... -->) from inline raw HTML
+  RawInline = function(ri)
+    if ri.format == "html" and ri.text:match("^%s*<!%-%-") then
+      return pandoc.Str("")
+    end
+    return ri
+  end,
+
   -- Style horizontal dividers with margin, max-width, and chromatic aberration
   HorizontalRule = function()
     return pandoc.RawBlock("html", '<hr style="margin:1em auto!important;max-width:80%!important;border:none!important;height:2px!important;background:#ddd!important;box-shadow:-1px 0 0 rgba(255,0,0,0.6),1px 0 0 rgba(0,255,255,0.6)!important;" />')
   end,
 
-  -- Wrap entire document body in a max-width div for readable line length
+  -- Wrap entire document body in a max-width div for readable line length; strip multi-line Obsidian comments
   Pandoc = function(doc)
+    -- Strip block-level %%...%% comments (spanning multiple paragraphs; Para handler wraps them in Divs)
+    local filtered = pandoc.List:new()
+    local in_comment = false
+    for _, blk in ipairs(doc.blocks) do
+      local txt = ""
+      if blk.t == "Plain" or blk.t == "Para" then
+        txt = pandoc.utils.stringify(blk):gsub("^%s+", ""):gsub("%s+$", "")
+      elseif blk.t == "Div" and #blk.content > 0 then
+        txt = pandoc.utils.stringify(blk.content[1]):gsub("^%s+", ""):gsub("%s+$", "")
+      end
+      if txt == "%%" then
+        in_comment = not in_comment
+        goto continue
+      end
+      if not in_comment then
+        filtered:insert(blk)
+      end
+      ::continue::
+    end
+    doc.blocks = filtered
     doc.blocks = pandoc.Div(doc.blocks, {style = "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"})
     return doc
   end,
