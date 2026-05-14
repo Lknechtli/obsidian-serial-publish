@@ -10,12 +10,13 @@ local heading_styles = {
 
 local callout_colors = {
   info = "#1e90ff", warning = "#ff5722", error = "#f44336", tip = "#4caf50"
-  , note = "#8bc34a", task = "#9c27b0", quote = "#607d8b"
+  , note = "#8bc34a", task = "#9c27b0", quote = "#607d8b", example = "#9c27b0"
 }
 
 local callout_symbols = {
   info = "\u{2139} ", warning = "\u{26A0} ", error = "\u{2716} "
   , tip = "\u{25B6} ", note = "\u{270E} ", task = "\u{2611} ", quote = "\u{201C} "
+  , example = "\u{2637}"
 }
 
 local function normalize_callout_type(t)
