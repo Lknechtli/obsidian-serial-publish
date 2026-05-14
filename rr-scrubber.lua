@@ -261,11 +261,12 @@ local function convert_callout(callout_type, title, bq_content)
 
   local table_html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. shadow_style .. border_style .. '">'
 
-  -- Title row (if present)
+  -- Title row (macOS window title bar style)
   if title then
     local esc_title = title:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
     local bottom_border = num_body_sections > 0 and ('border-bottom:2px solid ' .. color .. '!important') or ''
-    table_html = table_html .. '<tr><td style="color:' .. color .. '!important;font-weight:bold!important;padding:0.5em 1em!important;border:none!important;' .. bottom_border .. '">' .. esc_title .. '</td></tr>'
+    local dots = '<font color="#ff5f57">&#11044;</font>&#8201;<font color="#febc2e">&#11044;</font>&#8201;<font color="#28c840">&#11044;</font>&ensp;'
+    table_html = table_html .. '<tr><td style="background:' .. color .. '!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;' .. bottom_border .. '">' .. dots .. esc_title .. '</td></tr>'
   end
 
   -- Body section rows (each --- creates a new row with separator border)
