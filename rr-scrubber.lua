@@ -10,7 +10,7 @@ local heading_styles = {
 
 local callout_colors = {
   info = "#1e90ff", warning = "#ff5722", error = "#f44336", tip = "#4caf50"
-  , note = "#8bc34a", task = "#9c27b0", quote = "#607d8b", example = "#9c27b0"
+  , note = "#8bc34a", task = "#9c27b0", quote = "#607d8b", example = "#ba68c8"
 }
 
 local callout_symbols = {
