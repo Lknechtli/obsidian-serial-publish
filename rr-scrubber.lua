@@ -173,11 +173,11 @@ local function convert_callout(callout_type, title, bq_content)
           end
         end
       end
-    elseif (cblk.t == "Para") and cblk.content then
-      -- Subsequent Para children: extract with LineBreak preservation  
-      for _, inline in ipairs(cblk.content) do
-        if inline.t == "LineBreak" then inner_html = inner_html .. "\n" end
-        if inline.t == "Str" and inline.text then inner_html = inner_html .. inline.text end
+    elseif ((cblk.t == "Para") or (cblk.t == "Div")) and cblk.content then
+      -- Subsequent Para/Div children: prepend newline separator, then extract content
+      local unwrapped = unwrap_div(cblk)
+      inner_html = inner_html .. "\n\n"  -- double newline for paragraph break spacing
+      for _, inline in ipairs(unwrapped.content or {}) do
         local html = inline_to_html(inline)
         if #html > 0 then inner_html = inner_html .. html end
       end
@@ -214,7 +214,11 @@ local function convert_callout(callout_type, title, bq_content)
       tmp = tmp:sub(pos + 6)
     end
     for _, line in ipairs(parts) do
-      table.insert(lines, '<span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">' .. line .. '</span>')
+      local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
+      if #line == 0 then
+        span_style = span_style .. "height:1em!important;"
+      end
+      table.insert(lines, '<span style="' .. span_style .. '">' .. line .. '</span>')
     end
     rendered_body = table.concat(lines)
   else
