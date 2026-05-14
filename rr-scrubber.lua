@@ -113,12 +113,21 @@ local function convert_callout(callout_type, title, bq_content)
     return #txt > 0 and txt or ""
   end
 
-  -- Build body content from blockquote children  
-  local inner_html = ""
+  -- Build body content from blockquote children, splitting on HorizontalRule (---) into sections
+  local body_sections = {}   -- array of raw HTML strings per section
+  local current_section = ""
 
   for _, cblk in ipairs(bq_content or {}) do
-    if #inner_html == 0 then
-      -- First child: find [!type] marker and split at first break element
+    local unwrapped = unwrap_div(cblk)
+    -- Detect --- separator: either HorizontalRule or RawBlock(html) containing <hr>
+    local is_separator = (unwrapped.t == "HorizontalRule")
+      or (cblk.t == "RawBlock" and cblk.format == "html" and cblk.text:match("^%s*<hr"))
+    if is_separator then
+      --- separator: flush current section and start a new one
+      table.insert(body_sections, current_section)
+      current_section = ""
+    elseif #current_section == 0 and (#body_sections == 0) then
+      -- First content child (before any ---): find [!type] marker and split at first break element
       local unwrapped = unwrap_div(cblk)
       
       if (unwrapped.t == "Para" or unwrapped.t == "Plain") and unwrapped.content then
@@ -161,72 +170,82 @@ local function convert_callout(callout_type, title, bq_content)
         end
 
         -- Concatenate body parts — DO NOT strip \n characters
-        inner_html = table.concat(body_parts, "")
+        current_section = table.concat(body_parts, "")
       else
         -- Non-Para child: process normally  
         local unwrapped2 = unwrap_div(cblk)
         if (unwrapped2.t == "Para") and unwrapped2.content then
           for _, inline in ipairs(unwrapped2.content) do
-            if inline.t == "LineBreak" then inner_html = inner_html .. "\n" end
-            if inline.t == "Str" and inline.text then inner_html = inner_html .. inline.text end
+            if inline.t == "LineBreak" then current_section = current_section .. "\n" end
+            if inline.t == "Str" and inline.text then current_section = current_section .. inline.text end
             local html = inline_to_html(inline)
-            if #html > 0 then inner_html = inner_html .. html end
+            if #html > 0 then current_section = current_section .. html end
           end
         end
       end
     elseif ((cblk.t == "Para") or (cblk.t == "Div")) and cblk.content then
       -- Subsequent Para/Div children: prepend newline separator, then extract content
       local unwrapped = unwrap_div(cblk)
-      inner_html = inner_html .. "\n\n"  -- double newline for paragraph break spacing
+      current_section = current_section .. "\n\n"  -- double newline for paragraph break spacing
       for _, inline in ipairs(unwrapped.content or {}) do
         local html = inline_to_html(inline)
-        if #html > 0 then inner_html = inner_html .. html end
+        if #html > 0 then current_section = current_section .. html end
       end
     end
   end
 
-  -- Build body content (newlines preserved as <br />)
-  local clean_body = inner_html:gsub("^%s+", ""):gsub("%s+$", "")
-  if is_error then
-    clean_body = '<b>' .. clean_body .. '</b>'
-  end
-  local rendered_body = clean_body:gsub("\n", "<br />")
+  -- Flush the last section
+  table.insert(body_sections, current_section)
 
-  -- Convert markdown checkboxes to unicode: - [ ] → ☐, - [x] → ☑
-  rendered_body = rendered_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
-
-  -- Convert <span data-glitch="">text</span> to bold + chromatic aberration text-shadow
-  rendered_body = rendered_body:gsub("<span%s+([^>]*)data%-glitch=\"\"([^>]*)>(.-)</span>", function(pre, post, inner)
-    return '<b style="text-shadow:-1px 0 0 rgba(255,0,0,0.7),1px 0 0 rgba(0,255,255,0.7)!important;">' .. inner .. '</b>'
-  end)
-
-  -- Split on <br /> and wrap each line in a block span for consistent text-indent
-  local lines = {}
-  local parts = {}
-  local tmp = rendered_body:gsub("^%s*$", ""):gsub("%s+$", "")
-  if #tmp > 0 then
-    while true do
-      local pos = tmp:find("<br />")
-      if not pos then
-        table.insert(parts, tmp)
-        break
-      end
-      table.insert(parts, tmp:sub(1, pos - 1))
-      tmp = tmp:sub(pos + 6)
+  -- Process each section: clean, wrap lines in spans, escape ampersands
+  local processed_sections = {}
+  for _, raw_html in ipairs(body_sections) do
+    local clean_body = raw_html:gsub("^%s+", ""):gsub("%s+$", "")
+    if is_error then
+      clean_body = '<b>' .. clean_body .. '</b>'
     end
-    for _, line in ipairs(parts) do
-      local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
-      if #line == 0 then
-        span_style = span_style .. "height:1em!important;"
+    local rendered_body = clean_body:gsub("\n", "<br />")
+
+    -- Convert markdown checkboxes to unicode: - [ ] → ☐, - [x] → ☑
+    rendered_body = rendered_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
+
+    -- Convert <span data-glitch="">text</span> to bold + chromatic aberration text-shadow
+    rendered_body = rendered_body:gsub("<span%s+([^>]*)data%-glitch=\"\"([^>]*)>(.-)</span>", function(pre, post, inner)
+      return '<b style="text-shadow:-1px 0 0 rgba(255,0,0,0.7),1px 0 0 rgba(0,255,255,0.7)!important;">' .. inner .. '</b>'
+    end)
+
+    -- Split on <br /> and wrap each line in a block span for consistent text-indent
+    local lines = {}
+    local parts = {}
+    local tmp = rendered_body:gsub("^%s*$", ""):gsub("%s+$", "")
+    if #tmp > 0 then
+      while true do
+        local pos = tmp:find("<br />")
+        if not pos then
+          table.insert(parts, tmp)
+          break
+        end
+        table.insert(parts, tmp:sub(1, pos - 1))
+        tmp = tmp:sub(pos + 6)
       end
-      table.insert(lines, '<span style="' .. span_style .. '">' .. line .. '</span>')
+      for _, line in ipairs(parts) do
+        local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
+        if #line == 0 then
+          span_style = span_style .. "height:1em!important;"
+        end
+        table.insert(lines, '<span style="' .. span_style .. '">' .. line .. '</span>')
+      end
+      rendered_body = table.concat(lines)
+    else
+      rendered_body = ""
     end
-    rendered_body = table.concat(lines)
-  else
-    rendered_body = ""
+
+    -- Only escape bare ampersands, preserve existing HTML tags from inline_to_html()
+    local esc_body = rendered_body:gsub("&([^;])", function(c) return "&amp;" .. c end)
+    table.insert(processed_sections, esc_body)
   end
 
-  -- Build table HTML (RR-safe, no <pre> tags) — outer padding only, title + body as two rows
+  -- Build table HTML (RR-safe, no <pre> tags) — outer padding only, title + body sections as rows
   local border_style = 'border:4px solid ' .. color .. '!important'
 
   if is_error then
@@ -234,23 +253,32 @@ local function convert_callout(callout_type, title, bq_content)
     border_style = border_style .. shadow_style .. 'border: 4px solid #f44336!important;'
   end
 
-  -- Trim whitespace-only body to avoid rendering empty rows
-  rendered_body = rendered_body:gsub("^%s*$", "")
-  local has_body = (#rendered_body > 0)
+  -- Count non-empty body sections to determine separator logic
+  local num_body_sections = 0
+  for _, s in ipairs(processed_sections) do
+    if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
+  end
+
   local table_html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. shadow_style .. border_style .. '">'
 
   -- Title row (if present)
   if title then
     local esc_title = title:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
-    local bottom_border = has_body and ('border-bottom:2px solid ' .. color .. '!important') or ''
+    local bottom_border = num_body_sections > 0 and ('border-bottom:2px solid ' .. color .. '!important') or ''
     table_html = table_html .. '<tr><td style="color:' .. color .. '!important;font-weight:bold!important;padding:0.5em 1em!important;border:none!important;' .. bottom_border .. '">' .. esc_title .. '</td></tr>'
   end
 
-  -- Body row (single row with <br /> preserving line separation)
-  if has_body then
-    -- Only escape bare ampersands, preserve existing HTML tags from inline_to_html()
-    local esc_body = rendered_body:gsub("&([^;])", function(c) return "&amp;" .. c end)
-    table_html = table_html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;">' .. esc_body .. '</td></tr>'
+  -- Body section rows (each --- creates a new row with separator border)
+  local rendered_body_count = 0
+  for idx, section_html in ipairs(processed_sections) do
+    local trimmed = section_html:gsub("^%s*$", "")
+    if #trimmed > 0 then
+      rendered_body_count = rendered_body_count + 1
+      -- Add bottom-border separator between body sections (not after the last one)
+      local is_last = (rendered_body_count == num_body_sections)
+      local sep_border = not is_last and ('border-bottom:1px solid ' .. color .. '!important') or ''
+      table_html = table_html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;' .. sep_border .. '">' .. section_html .. '</td></tr>'
+    end
   end
 
   return pandoc.RawBlock("html", table_html .. '</tbody></table></div>')
