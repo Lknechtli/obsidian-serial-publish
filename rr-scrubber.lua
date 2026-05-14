@@ -232,7 +232,7 @@ local function convert_callout(callout_type, title, bq_content)
   -- Trim whitespace-only body to avoid rendering empty rows
   rendered_body = rendered_body:gsub("^%s*$", "")
   local has_body = (#rendered_body > 0)
-  local table_html = '<div style="max-width:90ch!important;margin:auto;"><table style="border-collapse:collapse!important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px!important;' .. shadow_style .. border_style .. '">'
+  local table_html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. shadow_style .. border_style .. '">'
 
   -- Title row (if present)
   if title then
@@ -248,7 +248,7 @@ local function convert_callout(callout_type, title, bq_content)
     table_html = table_html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;">' .. esc_body .. '</td></tr>'
   end
 
-  return pandoc.RawBlock("html", table_html .. '</tbody></table>')
+  return pandoc.RawBlock("html", table_html .. '</tbody></table></div>')
 end
 
 return {
@@ -610,6 +610,17 @@ return {
 
 
   -- Pass through links: Royal Road supports <a href=""> tags natively
+
+  -- Style horizontal dividers with margin, max-width, and chromatic aberration
+  HorizontalRule = function()
+    return pandoc.RawBlock("html", '<hr style="margin:1em auto!important;max-width:80%!important;border:none!important;height:2px!important;background:#ddd!important;box-shadow:-1px 0 0 rgba(255,0,0,0.6),1px 0 0 rgba(0,255,255,0.6)!important;" />')
+  end,
+
+  -- Wrap entire document body in a max-width div for readable line length
+  Pandoc = function(doc)
+    doc.blocks = pandoc.Div(doc.blocks, {style = "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"})
+    return doc
+  end,
 
 }
 
