@@ -551,6 +551,16 @@ return {
 
     if not plain then return end
 
+    -- Pass through if contains non-text elements (e.g., Image)
+    local has_non_text = false
+    for _, child in ipairs(plain.content or {}) do
+      if child.t ~= "Str" and child.t ~= "Space" and child.t ~= "SoftBreak" then
+        has_non_text = true
+        break
+      end
+    end
+    if has_non_text then return plain end
+
     local str_parts = {}
 
     for _, child in ipairs(plain.content or {}) do
@@ -626,6 +636,11 @@ return {
       return pandoc.Str("")
     end
     return ri
+  end,
+
+  -- Pass through figures (images) — RR supports <img> tags
+  Figure = function(fig)
+    return fig
   end,
 
   -- Inline code: add display:inline to override RR's default block rendering

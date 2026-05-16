@@ -92,7 +92,7 @@ def hello():
 
 ## Images
 
-![Dragon illustration](https://example.com/dragon.png)
+![Dragon illustration](https://www.royalroad.com/dist/img/nocover-new-min.png)
 
 ---
 
