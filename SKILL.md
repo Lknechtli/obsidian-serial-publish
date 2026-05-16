@@ -1,21 +1,18 @@
 --- 
 name: royal-road-scrubber
-description: Convert Obsidian markdown to Royal Road-compatible HTML. Uses a Pandoc Lua filter (rr-scrubber.lua) applied via --lua-filter for deterministic, testable conversion. Strips forbidden tags, converts headings to divs with inline styles, renders callouts as styled tables, strips links/wikilinks, unescapes brackets, and removes properties RR would break.
+description: Convert Obsidian markdown to Royal Road-compatible HTML. Uses a Pandoc Lua filter (rr-scrubber.lua) applied via --lua-filter for deterministic, testable conversion. Strips forbidden tags, converts headings to divs with inline styles, renders callouts as styled tables, preserves regular links, strips wiki links, unescapes brackets, and removes properties RR would break.
 user_invocable: true
 ---
 
 # Royal Road Scrubber — Pandoc Lua Filter
 
-**Recommended approach:** Use the bundled `rr-scrubber.lua` with pandoc for deterministic, testable conversion:
+**Recommended approach:** Use the bundled `rr-scrubber.sh` script for deterministic, testable conversion:
 
 ```bash
-pandoc --from 'markdown+fenced_divs' \
-  --to html \
-  --lua-filter=rr-scrubber.lua \
-  input.md -o output.html
+./rr-scrubber.sh input.md -o output.html
 ```
 
-This is a Lua filter that runs atomically with pandoc's parsing — no separate post-processing step needed.
+This handles `\[\[...\]\]` escape preprocessing and runs the `rr-scrubber.lua` Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
 
 **Note:** The SKILL.md below documents the conversion rules that the Lua filter implements. For new conversions, always prefer running the lua filter over instructing an LLM to manually apply these rules.
 
@@ -201,23 +198,22 @@ Do **not** collapse consecutive paragraphs into a single `<p>` — RR may strip 
 
 ```markdown
 Inline: `code`        -> <code>code</code> (safe)
-Fenced block:          -> <pre><code>...content...</code></pre>
-                        -> Apply px-to-em conversion to any font-size inside
+Fenced block:          -> <div class="sourceCode"><code>...content...</code></div>
+                        -> No <pre> wrapper (RR strips <pre> tags)
 ```
 
-### Links — Strip Entirely (Obsidian Input)
+### Links
 
-This is Obsidian markdown. All links should be removed from output:
-- `[text](url)` -> delete the link wrapper, keep only plain `text` if it makes sense standalone
-- `[[Page Name]]` -> delete entirely (Obsidian internal wiki-links have no RR equivalent)
+- `[text](url)` -> preserved as `<a href="url">text</a>` (Royal Road supports links natively)
+- `[[Page Name]]` -> stripped entirely (Obsidian wiki-links have no RR equivalent)
+- `\[\[Text\]\]` -> unescaped to literal `[[Text]]` in output (requires `rr-scrubber.sh` preprocessing)
 
 ### Escaped Brackets — Unescape in Output
 
 Backslash-escaped brackets are literal text in Obsidian and should output with brackets intact:
-- `\[\[Text\]\]` -> `[[Text]]` (strip backslashes, preserve all four brackets)
-- `\[Text\]` -> `[Text]` (strip backslashes, preserve two brackets)
+- `\[\[Text\]\]` -> `[[Text]]` (requires `rr-scrubber.sh` which preprocesses escapes before pandoc)
 
-**Rule:** Remove any `\[` or `\]` sequences and output the bare brackets with their content. Do not treat escaped wiki-links as links — they are literal text.
+**Rule:** Use `./rr-scrubber.sh input.md -o output.html` rather than raw pandoc, so that `\[\[...\]\]` sequences are distinguished from wiki links during preprocessing.
 
 ### Lists
 
@@ -297,7 +293,11 @@ Obsidian callout syntax (`> [!type]`) becomes styled `<table>` elements wrapped 
 ## 5. SAFE ELEMENTS & PROPERTIES (no conversion needed)
 
 ### HTML Elements That Survive Unchanged
-`<div>`, `<span>`, `<p>`, `<br>`, `<hr>`, `<ul>`, `<ol>`, `<li>`, `<a href="">`, `<b>`, `<i>`, `<u>`, `<strike>`, `<sub>`, `<sup>`, `<code>`, `<pre>`
+`<div>`, `<span>`, `<p>`, `<br>`, `<hr>`, `<ul>`, `<ol>`, `<li>`, `<a href="">`, `<b>`, `<i>`, `<u>`, `<strike>`, `<sub>`, `<sup>`, `<code>`, `<figure>`, `<figcaption>`, `<blockquote>`
+
+### HTML Elements That Are Stripped
+`<pre>` — RR strips `<pre>` tags. Use `<code>` without `<pre>` wrapper.
+`<font>` — RR converts `<font color="...">` to `<span style="color:...">`. Use `<span>` directly.
 
 ### CSS Properties That Survive (with correct values)
 - `color:` — safe as long as value is not pure #000/#fff (use conversions above)
@@ -356,7 +356,7 @@ This is **bold** and _italic_ text with a black background.
 </div>
 ```
 
-(Links `[text](url)` are stripped — only visible text remains. Wiki links `[[wiki]]` are removed entirely, leaving surrounding text intact.)
+(Links `[text](url)` are preserved as `<a>` tags. Wiki links `[[wiki]]` are removed entirely, leaving surrounding text intact.)
 
 ---
 
@@ -365,11 +365,13 @@ This is **bold** and _italic_ text with a black background.
 For every markdown-to-RR-HTML conversion via the Lua filter, verify:
 - [ ] No `<script>`, `<style>`, `<iframe>`, `<svg>`, etc. tags remain
 - [ ] All headings are `<div>` with inline styles (not `<hN>`)
-- [ ] Links are stripped — only visible text remains from `[text](url)`
+- [ ] Links `[text](url)` preserved as `<a href="">` tags
 - [ ] Wiki links `[[wiki]]` are removed entirely
-- [ ] Escaped brackets `\[\]` rendered as literal `[ ]`  
-- [ ] Callouts rendered as styled tables in max-width wrapper divs (no `<pre>` tags)
-- [ ] `[!error]` callouts have multi-layer chromatic aberration box-shadow and bold body text
-- [ ] Callout titles include Unicode symbols (ℹ ⚠ ✖ ▶ ✎ ☑ ❝)
+- [ ] Escaped brackets `\[\[...\]\]` rendered as literal `[[...]]` (use `rr-scrubber.sh`)
+- [ ] Callouts rendered as styled tables in max-width wrapper divs
+- [ ] `[!error]` callouts have single combined box-shadow (chromatic aberration + base) and bold body text
+- [ ] Callout titles use `<span style="color:...">` for traffic light dots (not `<font>`)
+- [ ] Code blocks use `<code>` without `<pre>` wrapper
+- [ ] All `box-shadow` properties are single declarations (RR only keeps the first)
 
 **Note:** CSS-level conversions (color inverter, border-radius `!important`, px→em, background shorthand → `background-image`, absolute positioning removal) apply only when the input already contains inline styles. The Lua filter handles markdown AST transformations; CSS property rewriting would need a separate post-processor if your source uses style attributes extensively.

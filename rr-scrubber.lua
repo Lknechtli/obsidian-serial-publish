@@ -246,11 +246,11 @@ local function convert_callout(callout_type, title, bq_content)
   end
 
   -- Build table HTML (RR-safe, no <pre> tags) — outer padding only, title + body sections as rows
-  local border_style = 'border:4px solid ' .. color .. '!important'
+  local border_style = 'border:4px solid ' .. color .. '!important;'
 
   if is_error then
-    border_style = [[box-shadow: -2px -1px 0 #ff0000!important, 2px 1px 0 #00ffff!important, -3px 2px 0 rgba(255,0,0,0.4)!important, 3px -2px 0 rgba(0,255,255,0.4)!important;]]
-    border_style = border_style .. shadow_style .. 'border: 4px solid #f44336!important;'
+    border_style = 'box-shadow: -2px -1px 0 #ff0000!important, 2px 1px 0 #00ffff!important, -3px 2px 0 rgba(255,0,0,0.4)!important, 3px -2px 0 rgba(0,255,255,0.4)!important, -4px 4px 0 #f4433666!important;'
+    border_style = border_style .. 'border: 4px solid #f44336!important;'
   end
 
   -- Count non-empty body sections to determine separator logic
@@ -259,13 +259,13 @@ local function convert_callout(callout_type, title, bq_content)
     if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
   end
 
-  local table_html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. shadow_style .. border_style .. '">'
+  local table_html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;' .. (is_error and '' or shadow_style) .. border_style .. '"><tbody>'
 
   -- Title row (macOS window title bar style)
   if title then
     local esc_title = title:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
-    local bottom_border = num_body_sections > 0 and ('border-bottom:2px solid ' .. color .. '!important') or ''
-    local dots = '<font color="#ff5f57">&#11044;</font>&#8201;<font color="#febc2e">&#11044;</font>&#8201;<font color="#28c840">&#11044;</font>&ensp;'
+    local bottom_border = num_body_sections > 0 and ('border-bottom:2px solid ' .. color .. '!important;') or ''
+    local dots = '<span style="color:#ff5f57!important;">&#11044;</span>&#8201;<span style="color:#febc2e!important;">&#11044;</span>&#8201;<span style="color:#28c840!important;">&#11044;</span>&ensp;'
     table_html = table_html .. '<tr><td style="background:' .. color .. '!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;' .. bottom_border .. '">' .. dots .. esc_title .. '</td></tr>'
   end
 
@@ -277,7 +277,7 @@ local function convert_callout(callout_type, title, bq_content)
       rendered_body_count = rendered_body_count + 1
       -- Add bottom-border separator between body sections (not after the last one)
       local is_last = (rendered_body_count == num_body_sections)
-      local sep_border = not is_last and ('border-bottom:1px solid ' .. color .. '!important') or ''
+      local sep_border = not is_last and ('border-bottom:1px solid ' .. color .. '!important;') or ''
       table_html = table_html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;' .. sep_border .. '">' .. section_html .. '</td></tr>'
     end
   end
@@ -498,15 +498,17 @@ return {
       local elem = para.content[i]
 
 
-      if elem.t == "Str" and elem.text then
+       if elem.t == "Str" and elem.text then
 
         local text = elem.text
 
-        if text:match("^%[%[") then
+        if text:match("^%[%[") and #text > 2 and not text:match("%]%]") then
 
-          -- Look ahead for closing ]] in subsequent elements (cross-node wiki link detection)
+          -- Look ahead for closing ]] or ]]] in subsequent elements
 
           local found_close = false
+
+          local found_triple = false
 
           local full_text = ""
 
@@ -520,7 +522,9 @@ return {
 
               full_text = full_text .. (next_elem.text)
 
-              if full_text:match("%]%]$") then
+              if full_text:match("%]%]%]") then
+
+                found_triple = true
 
                 found_close = true
 
@@ -528,7 +532,19 @@ return {
 
               end
 
-            elseif next_elem.t ~= "Space" then
+              if full_text:match("%]%]") then
+
+                found_close = true
+
+                break
+
+              end
+
+            elseif next_elem.t == "Space" then
+
+              full_text = full_text .. " "
+
+            else
 
               break
 
@@ -540,13 +556,67 @@ return {
 
           if found_close then
 
-            -- Extract inner text between [[ and ]]
+            -- Triple brackets [[[Text]]] → literal [[Text]]
 
-            local match = full_text:match("^%[%[(.+)%]%]$")
+            if found_triple then
 
-            if match then
+              local triple_match, remainder = full_text:match("^%[%[%[(.-)%]%]%](.*)")
 
-              new_content:insert(pandoc.Str(" " .. match:gsub("^%s+",""):gsub("%s+$","") .. " "))
+              if triple_match then
+
+                local trimmed = triple_match:gsub("^%s+",""):gsub("%s+$","")
+
+                local prefix = " "
+
+                local suffix = " "
+
+                if remainder and #remainder > 0 then
+
+                  suffix = ""
+
+                end
+
+                new_content:insert(pandoc.Str(prefix .. "[[" .. trimmed .. "]]" .. suffix))
+
+                if remainder and #remainder > 0 then
+
+                  new_content:insert(pandoc.Str(remainder))
+
+                end
+
+                i = j + 1
+
+                goto continue
+
+              end
+
+            end
+
+            -- Regular wiki link [[Text]] → stripped
+
+            local wiki_match, remainder = full_text:match("^%[%[(.-)%]%](.*)")
+
+            if wiki_match then
+
+              local trimmed = wiki_match:gsub("^%s+",""):gsub("%s+$","")
+
+              local prefix = " "
+
+              local suffix = " "
+
+              if remainder and #remainder > 0 then
+
+                suffix = ""
+
+              end
+
+              new_content:insert(pandoc.Str(prefix .. trimmed .. suffix))
+
+            end
+
+            if remainder and #remainder > 0 then
+
+              new_content:insert(pandoc.Str(remainder))
 
             end
 
@@ -554,7 +624,17 @@ return {
 
             goto continue
 
+          else
+
+            -- Can't find closing ]], treat as regular text
+
+            new_content:insert(elem)
+
           end
+
+          i = i + 1
+
+          goto continue
 
         elseif text:match("\\(%[%])") then
 
@@ -568,7 +648,7 @@ return {
 
         end
 
-      else
+       else
 
         new_content:insert(elem)
 
@@ -582,7 +662,22 @@ return {
 
     
 
-    para.content = new_content
+     -- Convert escape markers to literal brackets
+    local markers = pandoc.List:new()
+    for _, elem in ipairs(new_content) do
+      if elem.t == "Str" and elem.text then
+        local s = elem.text:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]")
+        if s ~= elem.text then
+          markers:insert(pandoc.Str(s))
+        else
+          markers:insert(elem)
+        end
+      else
+        markers:insert(elem)
+      end
+    end
+
+    para.content = markers
 
     local wrapped = pandoc.List:new()
 
@@ -604,6 +699,8 @@ return {
 
       if child.t == "Str" and child.text then table.insert(str_parts, child.text) end
 
+      if child.t == "Space" then table.insert(str_parts, " ") end
+
     end
 
     local txt = table.concat(str_parts, "")
@@ -611,6 +708,9 @@ return {
     txt = txt:gsub("\\(%[%])", "%1")
 
     txt = txt:gsub("%[%[(.+)%]%]", function(match) return " "..match:gsub("^%s+",""):gsub("%s+$","").." " end)
+
+    -- Convert escape markers to literal brackets
+    txt = txt:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]")
 
     if type(txt) ~= "string" then txt = "" end
 
@@ -626,14 +726,25 @@ return {
 
     if not str or not str.text then return str end
 
-    local s = str.text:gsub("\\(%[%])", "%1")
+    local original = str.text
 
-    if s ~= str.text then return pandoc.Str(s) end
+    -- Don't delete if contains escape markers (will be converted in Para/Plain handler)
+    if original:find("\1LB") or original:find("\1RB") then return str end
+
+    -- Triple brackets [[[Text]]] → literal [[Text]]
+    local triple = original:match("^%[%[%[(.+)%]%]%]$")
+    if triple then return pandoc.Str("[[" .. triple .. "]]") end
+
+    -- Delete wiki link patterns [[Text]]
+
+    if original:match("^%[%[.-%]%]$") then return {} end
 
 
-    -- Delete wiki link patterns [[Text]] in Str nodes (when wikilinks extension is NOT used)
+    -- Unescape brackets
 
-    if s:match("^%[%[.-%]%]$") then return {} end
+    local s = original:gsub("%\\([%[%]])", "%1")
+
+    if s ~= original then return pandoc.Str(s) end
 
 
     return str
@@ -658,6 +769,38 @@ return {
       return pandoc.Str("")
     end
     return ri
+  end,
+
+  -- Inline code: add display:inline to override RR's default block rendering
+  Code = function(el)
+    local txt = el.text or (el.c and el.c[2]) or ""
+    local escaped = txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    return pandoc.RawInline("html", '<code style="display:inline!important;">' .. escaped .. '</code>')
+  end,
+
+  -- Fenced code blocks: strip <pre> (RR strips <pre> tags); output raw <code>
+  CodeBlock = function(cb)
+    local lang = cb.attributes.language or ""
+    local code = cb.text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    local inner = '<code' .. (#lang > 0 and (' class="sourceCode ' .. lang .. '">') or '>') .. code .. '</code>'
+    return pandoc.RawBlock("html", '<div class="sourceCode">' .. inner .. '</div>')
+  end,
+
+  Div = function(div)
+    local attrs = div.attributes or div.attr or {}
+    local classes = attrs.class or {}
+    if type(classes) == "string" then
+      classes = {}
+      for c in (attrs.class or ""):gmatch("%S+") do table.insert(classes, c) end
+    end
+    local is_source = false
+    for _, c in ipairs(classes) do
+      if c == "sourceCode" then is_source = true break end
+    end
+    if is_source then
+      return pandoc.RawBlock("html", '')
+    end
+    return div
   end,
 
   -- Style horizontal dividers with margin, max-width, and chromatic aberration
