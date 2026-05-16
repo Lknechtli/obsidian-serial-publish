@@ -34,6 +34,109 @@ local function try_parse_callout(txt)
   return nil, nil
 end
 
+local function unwrap_div(elem)
+  if elem.t == "Div" and #elem.content > 0 then
+    return unwrap_div(elem.content[1])
+  end
+  return elem
+end
+
+local function extract_callout_title(inlines)
+  local marker_idx = 0
+  local callout_type = nil
+  for i, inline in ipairs(inlines) do
+    if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
+      callout_type = inline.text:match("^%[!(.-)%]")
+      marker_idx = i
+      break
+    end
+  end
+  if marker_idx == 0 then return nil, nil, 0 end
+
+  local break_idx = 0
+  for i = marker_idx + 1, #inlines do
+    if inlines[i].t == "LineBreak" or inlines[i].t == "SoftBreak" then
+      break_idx = i
+      break
+    end
+  end
+
+  local title_parts = {}
+  local limit = break_idx > 0 and (break_idx - 1) or #inlines
+  for i = marker_idx + 1, limit do
+    local inline = inlines[i]
+    if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
+    if inline.t == "Space" or inline.t == "SoftBreak" then
+      table.insert(title_parts, " ")
+    elseif inline.t == "Str" and inline.text then
+      table.insert(title_parts, inline.text)
+    end
+  end
+
+  return callout_type, table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", ""), break_idx
+end
+
+local function inline_to_html(el)
+  if el.t == "Str" and el.text then return el.text end
+  if el.t == "Space" then return " " end
+  if el.t == "LineBreak" then return "\n" end
+  if el.t == "SoftBreak" then return " " end
+  if el.t == "Code" then
+    local code_text = el.text or (el.c and el.c[2]) or ""
+    return "<code>" .. code_text:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;") .. "</code>"
+  end
+  if (el.t == "Strong" or el.t == "Emph") and el.content then
+    local inner = ""
+    for _, child in ipairs(el.content) do
+      inner = inner .. inline_to_html(child)
+    end
+    return (el.t == "Strong" and "<b>%s</b>" or "<i>%s</i>"):format(inner)
+  end
+  if el.t == "Strikeout" and el.content then
+    local inner = ""
+    for _, child in ipairs(el.content) do
+      inner = inner .. inline_to_html(child)
+    end
+    return ("<del>%s</del>"):format(inner)
+  end
+  if el.t == "Link" then
+    local url = (el.target or "")
+    local inner = ""
+    for _, child in ipairs(el.content) do
+      inner = inner .. inline_to_html(child)
+    end
+    return '<a href="' .. url:gsub('"','&quot;') .. '">' .. inner .. '</a>'
+  end
+  if el.t == "Image" then
+    local src = (el.source or "")
+    local alt_text = ""
+    for _, child in ipairs(el.content) do
+      if child.t == "Str" then alt_text = alt_text .. child.text end
+    end
+    return '<img src="' .. src:gsub('"','&quot;') .. '" alt="' .. alt_text:gsub('"','&quot;') .. '">'
+  end
+  if el.t == "RawInline" and el.format == "html" then return el.text or "" end
+  if el.t == "Span" and el.content then
+    local inner = ""
+    for _, child in ipairs(el.content) do
+      inner = inner .. inline_to_html(child)
+    end
+    local attrs = el.attributes or el.attr or {}
+    local data_attrs = ""
+    for k, v in pairs(attrs) do
+      if k:match("^data-") then
+        data_attrs = data_attrs .. ' ' .. k .. '="' .. v .. '"'
+      end
+    end
+    if #data_attrs > 0 then
+      return '<span' .. data_attrs .. '>' .. inner .. '</span>'
+    end
+    return inner
+  end
+  local txt = pandoc.utils.stringify(el):gsub("^%s+", ""):gsub("%s+$", "")
+  return #txt > 0 and txt or ""
+end
+
 local function convert_callout(callout_type, title, bq_content)
   callout_type = callout_colors[callout_type] and callout_type or "info"
   title = title or (callout_type:sub(1,1):upper() .. callout_type:sub(2))
@@ -44,74 +147,6 @@ local function convert_callout(callout_type, title, bq_content)
   local is_error = (callout_type == "error")
   local shadow_color = color .. "66"
   local shadow_style = 'box-shadow: -4px 4px 0 ' .. shadow_color .. '!important;'
-
-  local function unwrap_div(div_elem)
-    if div_elem.t == "Div" and #div_elem.content > 0 then
-      return unwrap_div(div_elem.content[1])
-    end
-    return div_elem
-  end
-
-  local function inline_to_html(el)
-    if el.t == "Str" and el.text then return el.text end
-    if el.t == "Space" then return " " end
-    if el.t == "LineBreak" then return "\n" end
-    if el.t == "SoftBreak" then return " " end
-    if el.t == "Code" then
-      local code_text = el.text or (el.c and el.c[2]) or ""
-      return "<code>" .. code_text:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;") .. "</code>"
-    end
-    if (el.t == "Strong" or el.t == "Emph") and el.content then
-      local inner = ""
-      for _, child in ipairs(el.content) do
-        inner = inner .. inline_to_html(child)
-      end
-      return (el.t == "Strong" and "<b>%s</b>" or "<i>%s</i>"):format(inner)
-    end
-    if el.t == "Strikeout" and el.content then
-      local inner = ""
-      for _, child in ipairs(el.content) do
-        inner = inner .. inline_to_html(child)
-      end
-      return ("<del>%s</del>"):format(inner)
-    end
-    if el.t == "Link" then
-      local url = (el.target or "")
-      local inner = ""
-      for _, child in ipairs(el.content) do
-        inner = inner .. inline_to_html(child)
-      end
-      return '<a href="' .. url:gsub('"','&quot;') .. '">' .. inner .. '</a>'
-    end
-    if el.t == "Image" then
-      local src = (el.source or "")
-      local alt_text = ""
-      for _, child in ipairs(el.content) do
-        if child.t == "Str" then alt_text = alt_text .. child.text end
-      end
-      return '<img src="' .. src:gsub('"','&quot;') .. '" alt="' .. alt_text:gsub('"','&quot;') .. '">'
-    end
-    if el.t == "RawInline" and el.format == "html" then return el.text or "" end
-    if el.t == "Span" and el.content then
-      local inner = ""
-      for _, child in ipairs(el.content) do
-        inner = inner .. inline_to_html(child)
-      end
-      local attrs = el.attributes or el.attr or {}
-      local data_attrs = ""
-      for k, v in pairs(attrs) do
-        if k:match("^data-") then
-          data_attrs = data_attrs .. ' ' .. k .. '="' .. v .. '"'
-        end
-      end
-      if #data_attrs > 0 then
-        return '<span' .. data_attrs .. '>' .. inner .. '</span>'
-      end
-      return inner
-    end
-    local txt = pandoc.utils.stringify(el):gsub("^%s+", ""):gsub("%s+$", "")
-    return #txt > 0 and txt or ""
-  end
 
   -- Build body content from blockquote children, splitting on HorizontalRule (---) into sections
   local body_sections = {}   -- array of raw HTML strings per section
@@ -127,26 +162,11 @@ local function convert_callout(callout_type, title, bq_content)
       table.insert(body_sections, current_section)
       current_section = ""
     elseif #current_section == 0 and (#body_sections == 0) then
-      -- First content child (before any ---): find [!type] marker and split at first break element
+      -- First content child (before any ---): find [!type] marker and extract body after title
       local unwrapped = unwrap_div(cblk)
-      
-      if (unwrapped.t == "Para" or unwrapped.t == "Plain") and unwrapped.content then
-        local marker_idx = 0
-        for i, inline in ipairs(unwrapped.content) do
-            if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-            marker_idx = i
-            break
-          end
-        end
 
-        -- Find first LineBreak or SoftBreak after the marker
-        local break_idx = 0
-        for i = marker_idx + 1, #unwrapped.content do
-          if unwrapped.content[i].t == "LineBreak" or unwrapped.content[i].t == "SoftBreak" then
-            break_idx = i
-            break
-          end
-        end
+      if (unwrapped.t == "Para" or unwrapped.t == "Plain") and unwrapped.content then
+        _, _, break_idx = extract_callout_title(unwrapped.content)
 
         -- Collect body from first break onward, LineBreaks become \n
         local body_parts = {}
@@ -156,7 +176,6 @@ local function convert_callout(callout_type, title, bq_content)
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n")
             elseif elem.t == "Space" or elem.t == "SoftBreak" then
-              -- Only add space between Str elements to avoid leading/trailing spaces
               local prev_is_str = i > 1 and (unwrapped.content[i-1].t == "Str")
               local next_is_str = i < #unwrapped.content and unwrapped.content[i+1] and unwrapped.content[i+1].t == "Str"
               if prev_is_str or next_is_str then table.insert(body_parts, " ") end
@@ -168,19 +187,13 @@ local function convert_callout(callout_type, title, bq_content)
             end
           end
         end
-
-        -- Concatenate body parts — DO NOT strip \n characters
         current_section = table.concat(body_parts, "")
-      else
-        -- Non-Para child: process normally  
-        local unwrapped2 = unwrap_div(cblk)
-        if (unwrapped2.t == "Para") and unwrapped2.content then
-          for _, inline in ipairs(unwrapped2.content) do
-            if inline.t == "LineBreak" then current_section = current_section .. "\n" end
-            if inline.t == "Str" and inline.text then current_section = current_section .. inline.text end
-            local html = inline_to_html(inline)
-            if #html > 0 then current_section = current_section .. html end
-          end
+      elseif (unwrapped.t == "Para") and unwrapped.content then
+        for _, inline in ipairs(unwrapped.content) do
+          if inline.t == "LineBreak" then current_section = current_section .. "\n" end
+          if inline.t == "Str" and inline.text then current_section = current_section .. inline.text end
+          local html = inline_to_html(inline)
+          if #html > 0 then current_section = current_section .. html end
         end
       end
     elseif ((cblk.t == "Para") or (cblk.t == "Div")) and cblk.content then
@@ -291,174 +304,27 @@ return {
 
   BlockQuote = function(bq)
     local callout_type = nil
-
     local extracted_title = nil
 
-    
-
-    for j, child in ipairs(bq.content or {}) do
-
-        if (child.t == "Para" or child.t == "Plain") and child.content then
-
-        local marker_idx = 0
-
-        for i, inline in ipairs(child.content) do
-
-            if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-
-            callout_type = inline.text:match("^%[!(.-)%]")
-
-            marker_idx = i
-
-            break
-
-          end
-
-        end
-
-        
-
-        -- Find first LineBreak or SoftBreak after the marker
-
-        local break_idx = 0
-
-        for i = marker_idx + 1, #child.content do
-
-          if child.content[i].t == "LineBreak" or child.content[i].t == "SoftBreak" then
-
-            break_idx = i
-
-            break
-
-          end
-
-        end
-
-        
-
-        -- Extract title: text after [!type] up to first break (or entire content if no break)
-
-        local title_parts = {}
-
-        local limit = break_idx > 0 and (break_idx - 1) or #child.content
-
-        for i = marker_idx + 1, limit do
-
-          local inline = child.content[i]
-
-          if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
-
-          if inline.t == "Space" or inline.t == "SoftBreak" then
-
-            table.insert(title_parts, " ")
-
-          elseif inline.t == "Str" and inline.text then
-
-            table.insert(title_parts, inline.text)
-
-          end
-
-        end
-
-        
-
-        extracted_title = table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", "")
-
-        
-
+    for _, child in ipairs(bq.content or {}) do
+      if (child.t == "Para" or child.t == "Plain") and child.content then
+        callout_type, extracted_title = extract_callout_title(child.content)
       elseif child.t == "RawBlock" and child.format == "html" then
-
         local html_text = (child.text or ""):gsub("<[^>]+>", ""):gsub("^%s+", ""):gsub("%s+$", "")
-
         callout_type, _ = try_parse_callout(html_text)
-
-        
-
       elseif child.t == "Div" and #child.content > 0 then
-
         local inner = child.content[1]
-
-          if (inner.t == "Para") and inner.content then
-
-          local marker_idx = 0
-
-          for i, inline in ipairs(inner.content) do
-
-            if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-
-              callout_type = inline.text:match("^%[!(.-)%]")
-
-              marker_idx = i
-
-              break
-
-            end
-
-          end
-
-          
-
-          local break_idx = 0
-
-          for i = marker_idx + 1, #inner.content do
-
-            if inner.content[i].t == "LineBreak" or inner.content[i].t == "SoftBreak" then
-
-              break_idx = i
-
-              break
-
-            end
-
-          end
-
-          
-
-          local title_parts = {}
-
-          local limit = break_idx > 0 and (break_idx - 1) or #inner.content
-
-          for i = marker_idx + 1, limit do
-
-            local inline = inner.content[i]
-
-            if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
-
-            if inline.t == "Space" or inline.t == "SoftBreak" then
-
-              table.insert(title_parts, " ")
-
-            elseif inline.t == "Str" and inline.text then
-
-              table.insert(title_parts, inline.text)
-
-            end
-
-          end
-
-          
-
-          extracted_title = table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", "")
-
+        if (inner.t == "Para") and inner.content then
+          callout_type, extracted_title = extract_callout_title(inner.content)
         end
-
       end
-
-      
-
       if callout_type then break end
-
     end
-
-    
 
     local norm = normalize_callout_type(callout_type)
-
     if norm then
       return convert_callout(norm, extracted_title or nil, bq.content)
-
     end
-
   end,
 
 
@@ -660,7 +526,7 @@ return {
 
     end
 
-    
+
 
      -- Convert escape markers to literal brackets
     local markers = pandoc.List:new()
