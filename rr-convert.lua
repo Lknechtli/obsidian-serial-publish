@@ -638,8 +638,16 @@ return {
     return ri
   end,
 
-  -- Pass through figures (images) — RR supports <img> tags
+  -- Pass through images, strip figcaption (alt text is enough)
   Figure = function(fig)
+    local img_block = fig.content[1]
+    if img_block and img_block.t == "Plain" then
+      for _, elem in ipairs(img_block.content) do
+        if elem.t == "Image" then
+          return pandoc.Para({elem})
+        end
+      end
+    end
     return fig
   end,
 
