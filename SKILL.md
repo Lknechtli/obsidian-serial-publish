@@ -1,18 +1,16 @@
 --- 
-name: royal-road-scrubber
-description: Convert Obsidian markdown to Royal Road-compatible HTML. Uses a Pandoc Lua filter (rr-scrubber.lua) applied via --lua-filter for deterministic, testable conversion. Strips forbidden tags, converts headings to divs with inline styles, renders callouts as styled tables, preserves regular links, strips wiki links, unescapes brackets, and removes properties RR would break.
+name: royal-road-converter
+description: Convert Obsidian markdown to Royal Road-compatible HTML. Uses a Pandoc Lua filter (rr-convert.lua) applied via --lua-filter for deterministic, testable conversion. Strips forbidden tags, converts headings to divs with inline styles, renders callouts as styled tables, preserves regular links, strips wiki links, unescapes brackets, and removes properties RR would break.
 user_invocable: true
 ---
 
 # Royal Road Scrubber — Pandoc Lua Filter
 
-**Recommended approach:** Use the bundled `rr-scrubber.sh` script for deterministic, testable conversion:
+**Recommended approach:** Use the bundled `rr-convert.sh` script for deterministic, testable conversion:
 
-```bash
-./rr-scrubber.sh input.md -o output.html
-```
+    ./rr-convert.sh input.md -o output.html
 
-This handles `\[\[...\]\]` escape preprocessing and runs the `rr-scrubber.lua` Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
+This handles `\[\[...\]\]` escape preprocessing and runs the `rr-convert.lua` Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
 
 **Note:** The SKILL.md below documents the conversion rules that the Lua filter implements. For new conversions, always prefer running the lua filter over instructing an LLM to manually apply these rules.
 
@@ -164,7 +162,7 @@ Do not include these in output — they waste bytes and serve zero purpose since
 
 ## 4. MARKDOWN TO HTML SPECIFIC RULES
 
-When the input is Obsidian markdown, apply these conversions before applying scrubber rules above.
+When the input is Obsidian markdown, apply these conversions before applying converter rules above.
 
 ### Headings
 ```markdown
@@ -206,14 +204,14 @@ Fenced block:          -> <div class="sourceCode"><code>...content...</code></di
 
 - `[text](url)` -> preserved as `<a href="url">text</a>` (Royal Road supports links natively)
 - `[[Page Name]]` -> stripped entirely (Obsidian wiki-links have no RR equivalent)
-- `\[\[Text\]\]` -> unescaped to literal `[[Text]]` in output (requires `rr-scrubber.sh` preprocessing)
+- `\[\[Text\]\]` -> unescaped to literal `[[Text]]` in output (requires `rr-convert.sh` preprocessing)
 
 ### Escaped Brackets — Unescape in Output
 
 Backslash-escaped brackets are literal text in Obsidian and should output with brackets intact:
-- `\[\[Text\]\]` -> `[[Text]]` (requires `rr-scrubber.sh` which preprocesses escapes before pandoc)
+- `\[\[Text\]\]` -> `[[Text]]` (requires `rr-convert.sh` which preprocesses escapes before pandoc)
 
-**Rule:** Use `./rr-scrubber.sh input.md -o output.html` rather than raw pandoc, so that `\[\[...\]\]` sequences are distinguished from wiki links during preprocessing.
+**Rule:** Use `./rr-convert.sh input.md -o output.html` rather than raw pandoc, so that `\[\[...\]\]` sequences are distinguished from wiki links during preprocessing.
 
 ### Lists
 
@@ -367,7 +365,7 @@ For every markdown-to-RR-HTML conversion via the Lua filter, verify:
 - [ ] All headings are `<div>` with inline styles (not `<hN>`)
 - [ ] Links `[text](url)` preserved as `<a href="">` tags
 - [ ] Wiki links `[[wiki]]` are removed entirely
-- [ ] Escaped brackets `\[\[...\]\]` rendered as literal `[[...]]` (use `rr-scrubber.sh`)
+- [ ] Escaped brackets `\[\[...\]\]` rendered as literal `[[...]]` (use `rr-convert.sh`)
 - [ ] Callouts rendered as styled tables in max-width wrapper divs
 - [ ] `[!error]` callouts have single combined box-shadow (chromatic aberration + base) and bold body text
 - [ ] Callout titles use `<span style="color:...">` for traffic light dots (not `<font>`)

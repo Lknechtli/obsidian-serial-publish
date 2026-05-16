@@ -1,12 +1,12 @@
 # Royal Road Scrubber — Examples
 
-Demonstrates every conversion the `rr-scrubber.lua` Pandoc Lua filter performs on Obsidian markdown.
+Demonstrates every conversion the `rr-convert.lua` Pandoc Lua filter performs on Obsidian markdown.
 
 ---
 
 ## Headings (h1–h6 → styled divs)
 
-Royal Road mangles `<h1>`–`<h6>` into `<p>` tags. The scrubber converts them to `<div>` elements with inline styles.
+Royal Road mangles `<h1>`–`<h6>` into `<p>` tags. The converter converts them to `<div>` elements with inline styles.
 
 # Level 1 Heading
 ## Level 2 Heading

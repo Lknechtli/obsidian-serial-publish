@@ -45,6 +45,7 @@ local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
 
+local inline_to_html
 local function collect_inner(content)
   local inner = ""
   for _, child in ipairs(content) do
@@ -53,42 +54,7 @@ local function collect_inner(content)
   return inner
 end
 
-local function extract_callout_title(inlines)
-  local marker_idx = 0
-  local callout_type = nil
-  for i, inline in ipairs(inlines) do
-    if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-      callout_type = inline.text:match("^%[!(.-)%]")
-      marker_idx = i
-      break
-    end
-  end
-  if marker_idx == 0 then return nil, nil, 0 end
-
-  local break_idx = 0
-  for i = marker_idx + 1, #inlines do
-    if inlines[i].t == "LineBreak" or inlines[i].t == "SoftBreak" then
-      break_idx = i
-      break
-    end
-  end
-
-  local title_parts = {}
-  local limit = break_idx > 0 and (break_idx - 1) or #inlines
-  for i = marker_idx + 1, limit do
-    local inline = inlines[i]
-    if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
-    if inline.t == "Space" or inline.t == "SoftBreak" then
-      table.insert(title_parts, " ")
-    elseif inline.t == "Str" and inline.text then
-      table.insert(title_parts, inline.text)
-    end
-  end
-
-  return callout_type, table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", ""), break_idx
-end
-
-local function inline_to_html(el)
+inline_to_html = function(el)
   if el.t == "Str" and el.text then return el.text end
   if el.t == "Space" then return " " end
   if el.t == "LineBreak" then return "\n" end
@@ -132,6 +98,41 @@ local function inline_to_html(el)
   end
   local txt = pandoc.utils.stringify(el):gsub("^%s+", ""):gsub("%s+$", "")
   return #txt > 0 and txt or ""
+end
+
+local function extract_callout_title(inlines)
+  local marker_idx = 0
+  local callout_type = nil
+  for i, inline in ipairs(inlines) do
+    if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
+      callout_type = inline.text:match("^%[!(.-)%]")
+      marker_idx = i
+      break
+    end
+  end
+  if marker_idx == 0 then return nil, nil, 0 end
+
+  local break_idx = 0
+  for i = marker_idx + 1, #inlines do
+    if inlines[i].t == "LineBreak" or inlines[i].t == "SoftBreak" then
+      break_idx = i
+      break
+    end
+  end
+
+  local title_parts = {}
+  local limit = break_idx > 0 and (break_idx - 1) or #inlines
+  for i = marker_idx + 1, limit do
+    local inline = inlines[i]
+    if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
+    if inline.t == "Space" or inline.t == "SoftBreak" then
+      table.insert(title_parts, " ")
+    elseif inline.t == "Str" and inline.text then
+      table.insert(title_parts, inline.text)
+    end
+  end
+
+  return callout_type, table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", ""), break_idx
 end
 
 local function build_body_sections(bq_content)
@@ -227,7 +228,7 @@ local function process_section(raw_html, is_error)
     rendered = ""
   end
 
-  return rendered:gsub("&([^;])", function(c) return "&amp;" .. c end)
+  return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
 end
 
 local function build_table_html(callout_type, title, processed_sections)

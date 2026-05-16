@@ -8,7 +8,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FILTER="$SCRIPT_DIR/rr-scrubber.lua"
+FILTER="$SCRIPT_DIR/rr-convert.lua"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 input.md [-o output.html]" >&2

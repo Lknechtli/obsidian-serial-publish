@@ -1,6 +1,6 @@
 # Royal Road Scrubber — Examples
 
-Live examples of every conversion the `rr-scrubber.lua` Pandoc Lua filter performs.
+Live examples of every conversion the `rr-convert.lua` Pandoc Lua filter performs.
 
 ## Files
 
@@ -10,16 +10,16 @@ Live examples of every conversion the `rr-scrubber.lua` Pandoc Lua filter perfor
 ## Usage
 
 ```bash
-./rr-scrubber.sh input.md -o output.html
+./rr-convert.sh input.md -o output.html
 ```
 
-The script preprocesses `\[\[...\]\]` escape sequences so the Lua filter can distinguish them from wiki links. Under the hood it runs `sed` to swap `\[` / `\]` for control characters, then pipes through pandoc with `rr-scrubber.lua`.
+The script preprocesses `\[\[...\]\]` escape sequences so the Lua filter can distinguish them from wiki links. Under the hood it runs `sed` to swap `\[` / `\]` for control characters, then pipes through pandoc with `rr-convert.lua`.
 
 ## What's Demonstrated
 
 ### Headings (h1–h6 → styled divs)
 
-Royal Road mangles `<h1>`–`<h6>` into `<p>` tags. The scrubber converts them to `<div>` elements with inline styles.
+Royal Road mangles `<h1>`–`<h6>` into `<p>` tags. The converter converts them to `<div>` elements with inline styles.
 
 | Markdown | Heading Level |
 |----------|--------------|
