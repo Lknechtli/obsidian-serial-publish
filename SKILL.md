@@ -4,7 +4,7 @@ description: Convert Obsidian markdown to Royal Road-compatible HTML. Uses a Pan
 user_invocable: true
 ---
 
-# Royal Road Scrubber — Pandoc Lua Filter
+# Royal Road Converter — Pandoc Lua Filter
 
 **Recommended approach:** Use the bundled `rr-convert.sh` script for deterministic, testable conversion:
 
