@@ -1,0 +1,93 @@
+/* EPUB Callout Styles */
+
+.callout {
+  margin: 1.5em 0;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.95em;
+}
+
+.callout-title {
+  margin: 0;
+  padding: 0.6em 1em;
+  font-size: 1em;
+  font-weight: bold;
+  border: none;
+  border-radius: 0;
+}
+
+/* Callout type colors */
+.callout-info {
+  border-left: 4px solid #1e90ff;
+  background: #f0f7ff;
+}
+.callout-info .callout-title {
+  background: #1e90ff;
+  color: #fff;
+}
+
+.callout-tip {
+  border-left: 4px solid #4caf50;
+  background: #f0faf0;
+}
+.callout-tip .callout-title {
+  background: #4caf50;
+  color: #fff;
+}
+
+.callout-warning {
+  border-left: 4px solid #ff5722;
+  background: #fff5f0;
+}
+.callout-warning .callout-title {
+  background: #ff5722;
+  color: #fff;
+}
+
+.callout-error {
+  border-left: 4px solid #f44336;
+  background: #fff0f0;
+}
+.callout-error .callout-title {
+  background: #f44336;
+  color: #fff;
+}
+.callout-error p {
+  font-weight: bold;
+}
+
+.callout-note {
+  border-left: 4px solid #8bc34a;
+  background: #f5faf0;
+}
+.callout-note .callout-title {
+  background: #8bc34a;
+  color: #fff;
+}
+
+.callout-task {
+  border-left: 4px solid #9c27b0;
+  background: #faf0fb;
+}
+.callout-task .callout-title {
+  background: #9c27b0;
+  color: #fff;
+}
+
+.callout-quote {
+  border-left: 4px solid #607d8b;
+  background: #f0f2f3;
+}
+.callout-quote .callout-title {
+  background: #607d8b;
+  color: #fff;
+}
+
+.callout-example {
+  border-left: 4px solid #ba68c8;
+  background: #faf0fb;
+}
+.callout-example .callout-title {
+  background: #ba68c8;
+  color: #fff;
+}

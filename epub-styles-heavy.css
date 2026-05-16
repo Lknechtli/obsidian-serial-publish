@@ -1,0 +1,194 @@
+/* EPUB Heavy Callout Styles — matches RR HTML output */
+
+.callout {
+  max-width: 60ch;
+  margin: 1.5em auto;
+}
+
+.callout > .callout-title {
+  margin: 0;
+  font-size: 0.9em;
+  font-family: monospace;
+  font-weight: bold;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  background: #1a1a2e;
+  color: #ddd;
+}
+
+.callout > .callout-title::before {
+  display: block;
+  padding: 0.5em 1em 0.5em 0.3em;
+  font-family: monospace;
+  font-size: 1em;
+}
+
+.callout > p,
+.callout > pre,
+.callout > blockquote {
+  margin: 0;
+  padding: 0.5em 1em;
+  font-family: monospace;
+  font-size: 0.9em;
+  background: #1a1a2e;
+  color: #ddd;
+  white-space: pre-wrap;
+  border: none;
+}
+
+.callout > p > * {
+  padding-left: 1em;
+  text-indent: -1em;
+  display: block;
+}
+
+/* --- Info --- */
+.callout-info > .callout-title {
+  border: 4px solid #1e90ff;
+  box-shadow: -4px 4px 0 #1e90ff66;
+}
+.callout-info > .callout-title::before {
+  background: #1e90ff;
+  color: #1a1a2e;
+  border-bottom: 2px solid #1e90ff;
+}
+.callout-info > p,
+.callout-info > pre,
+.callout-info > blockquote {
+  border: 4px solid #1e90ff;
+  border-top: none;
+  box-shadow: -4px 4px 0 #1e90ff66;
+}
+
+/* --- Tip --- */
+.callout-tip > .callout-title {
+  border: 4px solid #4caf50;
+  box-shadow: -4px 4px 0 #4caf5066;
+}
+.callout-tip > .callout-title::before {
+  background: #4caf50;
+  color: #1a1a2e;
+  border-bottom: 2px solid #4caf50;
+}
+.callout-tip > p,
+.callout-tip > pre,
+.callout-tip > blockquote {
+  border: 4px solid #4caf50;
+  border-top: none;
+  box-shadow: -4px 4px 0 #4caf5066;
+}
+
+/* --- Warning --- */
+.callout-warning > .callout-title {
+  border: 4px solid #ff5722;
+  box-shadow: -4px 4px 0 #ff572266;
+}
+.callout-warning > .callout-title::before {
+  background: #ff5722;
+  color: #1a1a2e;
+  border-bottom: 2px solid #ff5722;
+}
+.callout-warning > p,
+.callout-warning > pre,
+.callout-warning > blockquote {
+  border: 4px solid #ff5722;
+  border-top: none;
+  box-shadow: -4px 4px 0 #ff572266;
+}
+
+/* --- Error --- */
+.callout-error > .callout-title {
+  border: 4px solid #f44336;
+  box-shadow: -2px -1px 0 #ff0000, 2px 1px 0 #00ffff,
+    -3px 2px 0 rgba(255, 0, 0, 0.4), 3px -2px 0 rgba(0, 255, 255, 0.4),
+    -4px 4px 0 #f4433666;
+}
+.callout-error > .callout-title::before {
+  background: #f44336;
+  color: #1a1a2e;
+  border-bottom: 2px solid #f44336;
+}
+.callout-error > p,
+.callout-error > pre,
+.callout-error > blockquote {
+  border: 4px solid #f44336;
+  border-top: none;
+  box-shadow: -2px -1px 0 #ff0000, 2px 1px 0 #00ffff,
+    -3px 2px 0 rgba(255, 0, 0, 0.4), 3px -2px 0 rgba(0, 255, 255, 0.4),
+    -4px 4px 0 #f4433666;
+  font-weight: bold;
+}
+
+/* --- Note --- */
+.callout-note > .callout-title {
+  border: 4px solid #8bc34a;
+  box-shadow: -4px 4px 0 #8bc34a66;
+}
+.callout-note > .callout-title::before {
+  background: #8bc34a;
+  color: #1a1a2e;
+  border-bottom: 2px solid #8bc34a;
+}
+.callout-note > p,
+.callout-note > pre,
+.callout-note > blockquote {
+  border: 4px solid #8bc34a;
+  border-top: none;
+  box-shadow: -4px 4px 0 #8bc34a66;
+}
+
+/* --- Task --- */
+.callout-task > .callout-title {
+  border: 4px solid #9c27b0;
+  box-shadow: -4px 4px 0 #9c27b066;
+}
+.callout-task > .callout-title::before {
+  background: #9c27b0;
+  color: #1a1a2e;
+  border-bottom: 2px solid #9c27b0;
+}
+.callout-task > p,
+.callout-task > pre,
+.callout-task > blockquote {
+  border: 4px solid #9c27b0;
+  border-top: none;
+  box-shadow: -4px 4px 0 #9c27b066;
+}
+
+/* --- Quote --- */
+.callout-quote > .callout-title {
+  border: 4px solid #607d8b;
+  box-shadow: -4px 4px 0 #607d8b66;
+}
+.callout-quote > .callout-title::before {
+  background: #607d8b;
+  color: #1a1a2e;
+  border-bottom: 2px solid #607d8b;
+}
+.callout-quote > p,
+.callout-quote > pre,
+.callout-quote > blockquote {
+  border: 4px solid #607d8b;
+  border-top: none;
+  box-shadow: -4px 4px 0 #607d8b66;
+}
+
+/* --- Example --- */
+.callout-example > .callout-title {
+  border: 4px solid #ba68c8;
+  box-shadow: -4px 4px 0 #ba68c866;
+}
+.callout-example > .callout-title::before {
+  background: #ba68c8;
+  color: #1a1a2e;
+  border-bottom: 2px solid #ba68c8;
+}
+.callout-example > p,
+.callout-example > pre,
+.callout-example > blockquote {
+  border: 4px solid #ba68c8;
+  border-top: none;
+  box-shadow: -4px 4px 0 #ba68c866;
+}
