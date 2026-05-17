@@ -39,6 +39,7 @@ for k, v in pairs(callout_defs) do
 end
 
 local function normalize_callout_type(t)
+  if not t then return nil end
   if callout_colors[t] then return t end
   local base = t:match("^(.-)%-[%d]+$")
   if base and callout_colors[base] then return base end

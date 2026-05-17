@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# rr-scrubber.sh — Convert Obsidian markdown to Royal Road-compatible HTML
+# rr-convert.sh — Convert Obsidian markdown to Royal Road-compatible HTML
 # Preprocesses \[\[...\]\] escape sequences so the Lua filter can distinguish
 # them from wiki links.
 #
-# Usage: ./rr-scrubber.sh input.md [-o output.html]
+# macOS / Linux. For Windows, use rr-convert.ps1 instead.
+#
+# Usage: ./rr-convert.sh input.md [-o output.html]
 
 set -euo pipefail
 
