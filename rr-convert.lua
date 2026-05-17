@@ -774,8 +774,11 @@ return {
     -- Build <style> block from rr_defaults (stripped by RR, preserved standalone)
     local rules = {}
     local rr_font = rr_defaults.font
-    if rr_font and rr_font.family then
-      table.insert(rules, '.rr-theme{font-family:' .. rr_font.family .. '}')
+    if rr_font and (rr_font.family or rr_font.size) then
+      local parts = {}
+      if rr_font.family then table.insert(parts, 'font-family:' .. rr_font.family) end
+      if rr_font.size then table.insert(parts, 'font-size:' .. rr_font.size) end
+      table.insert(rules, '.rr-theme{' .. table.concat(parts, ';') .. '}')
     end
     local rr_code = rr_defaults.code
     if rr_code and rr_code.inline_style then
@@ -801,8 +804,11 @@ return {
 
     -- Wrapper div: class for standalone, inline styles only for overrides
     local wrapper_style = settings.doc_wrapper_style or "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"
-    if font_override and font_override.family then
-      wrapper_style = wrapper_style .. 'font-family:' .. font_override.family .. '!' .. 'important;'
+    if font_override then
+      local overrides = {}
+      if font_override.family then table.insert(overrides, 'font-family:' .. font_override.family .. '!' .. 'important') end
+      if font_override.size then table.insert(overrides, 'font-size:' .. font_override.size .. '!' .. 'important') end
+      if #overrides > 0 then wrapper_style = wrapper_style .. table.concat(overrides, ';') .. ';' end
     end
 
     -- Build doc as: [head_blocks, <div open>, content, </div>]

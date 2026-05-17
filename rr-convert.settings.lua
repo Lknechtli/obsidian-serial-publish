@@ -16,6 +16,7 @@ local rr_defaults = {
   -- =========================================================================
   font = {
     family     = 'Open Sans, Arial, sans-serif',
+    size       = '14px',
     import_url = 'https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap',
   },
 
