@@ -9,6 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FILTER="$SCRIPT_DIR/rr-convert.lua"
+export RR_CONVERT_SETTINGS="$SCRIPT_DIR/rr-convert.settings.lua"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 input.md [-o output.html]" >&2

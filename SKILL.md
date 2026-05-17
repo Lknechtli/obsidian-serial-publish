@@ -95,9 +95,9 @@ font-size: 1.6em; line-height: 2.4em;
 ### Heading Tags — `<hN>` to `<div>` with Inline Styling
 RR mangles `<h1>` through `<h6>` into `<p>` tags during parsing. Convert to `<div>` elements with inline styles that replicate heading semantics.
 
-**Rule:** Replace every `<hN` and `</hN>` (N is 1 through 6) with `<div` / `</div>`. Add inline styles for font-size, font-weight, and margins appropriate to the heading level:
+**Rule:** Replace every `<hN` and `</hN>` (N is 1 through 6) with `<div` / `</div>`. Inline styles are sourced from `rr-convert.settings.lua` → `headings` (default values shown):
 
-| Level | Inline style template |
+| Level | Default inline style |
 |-------|----------------------|
 | h1    | `font-size:2.0em;font-weight:bold;margin:1.5em 0 0.8em;` |
 | h2    | `font-size:1.6em;font-weight:bold;margin:1.3em 0 0.7em;` |
@@ -165,6 +165,8 @@ Do not include these in output — they waste bytes and serve zero purpose since
 When the input is Obsidian markdown, apply these conversions before applying converter rules above.
 
 ### Headings
+Styles are configured in `rr-convert.settings.lua` → `headings`. Default output:
+
 ```markdown
 # H1        -> <div style="font-size:2.0em;font-weight:bold;margin:1.5em 0 0.8em;">Heading</div>
 ## H2       -> <div style="font-size:1.6em;font-weight:bold;margin:1.3em 0 0.7em;">Heading</div>
@@ -224,14 +226,23 @@ Backslash-escaped brackets are literal text in Obsidian and should output with b
 
 | Markdown | HTML Output | Notes |
 |----------|-------------|-------|
-| `---` | `<hr style="border:0;border-top:2px solid #333;margin:2em 0;">` | RR-safe |
+| `---` | styled `<hr>` from `rr-convert.settings.lua` → `horizontal_rule` (default: centered, max-width 80%, chromatic aberration) | RR-safe |
 | `![alt](src)` | `<img src="src" alt="alt">` | Ensure trusted domain; use em or % for width/height — never px |
 
 ### Callouts — Styled Tables (RR-safe, no `<pre>` tags)
 
 Obsidian callout syntax (`> [!type]`) becomes styled `<table>` elements wrapped in a max-width container. Royal Road strips `<pre>` tags, so tables are used instead.
 
-**Supported callout types:**
+All callout styling is configured in `rr-convert.settings.lua` under `callouts` (per-type) and `callout_table` (shared). Each callout type defines:
+- `color` — hex color for backgrounds, borders, shadows
+- `symbol` — unicode symbol prepended to the title
+- `heading_style` — inline CSS for the title `<td>` (`%s` → color)
+- `body_style` — inline CSS for body `<td>` cells
+- `border_between` — CSS for the border between body sections (`%s` → color)
+- `border_heading` — CSS for the bottom border of the heading cell (`%s` → color)
+- `error_override` — optional override for shadow/border (used by `error` type)
+
+**Default callout types:**
 
 | Callout Type | Color (hex) | Symbol | Notes |
 |--------------|-------------|--------|-------|
@@ -242,13 +253,15 @@ Obsidian callout syntax (`> [!type]`) becomes styled `<table>` elements wrapped 
 | `note`       | `#8bc34a`   | ✎      | Light green  |
 | `task`       | `#9c27b0`   | ☑      | Purple      |
 | `quote`      | `#607d8b`   | ❝      | Slate blue  |
+| `example`    | `#ba68c8`   | ☷      | Lavender    |
 
 **Structure:** Each callout renders as:
-- Outer wrapper: `<div style="max-width:90ch!important;margin:auto;">` — caps width at ~90 characters, centers on page
-- Table with dark background (`#1a1a2e`) and monospace font
-- **Title row**: colored bold text with Unicode symbol prefix; `border-bottom:2px solid <color>` separator (or 0 if no body)
-- **Body row**: content with `<br />` preserving line breaks; all cell borders at 0
-- Outer table border: `4px solid <color>` on the table element itself
+- Outer wrapper div (`callout_table.wrapper_style`) — caps width, centers on page
+- Table with dark background and monospace font (`callout_table.table_style`)
+- Traffic light dots prefix (`callout_table.title_prefix`) before the title
+- **Title row**: colored bold text with symbol prefix; bottom border separator
+- **Body row**: content with `<br />` preserving line breaks
+- Outer table border and shadow (`callout_table.border` / `callout_table.shadow`)
 
 **All critical CSS properties use `!important`** to override Royal Road defaults.
 
@@ -256,36 +269,7 @@ Obsidian callout syntax (`> [!type]`) becomes styled `<table>` elements wrapped 
 - Chromatic aberration via multi-layer box-shadow (red/cyan offsets in multiple directions)
 - **All body text is bold** — wrapped in `<b>` tags
 
-**Example ([!info]):**
-```markdown
-> [!info] Note
-> This is an informational note.
-
-<!-- becomes -->
-<div style="max-width:90ch!important;margin:auto;">
-<table style="background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow:-4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
-<tr><td colspan="2" style="color:#1e90ff!important;font-weight:bold!important;padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;border-bottom:2px solid #1e90ff!important;">ℹ Note</td></tr>
-<tr><td colspan="2" style="padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;border-bottom:0!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">This is an informational note.</span></td></tr>
-</tbody></table>
-</div>
-```
-
-**Example ([!error]):**
-```markdown
-> [!error] Critical Failure
-> The system encountered a fatal error.
-
-<!-- becomes -->
-<div style="max-width:90ch!important;margin:auto;">
-<table style="background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow:-4px 4px 0 #f4433666!important,-2px -1px 0 #ff0000!important,2px 1px 0 #00ffff!important,-3px 2px 0 rgba(255,0,0,0.4)!important,3px -2px 0 rgba(0,255,255,0.4)!important;border:4px solid #f44336!important;">
-<tr><td colspan="2" style="color:#f44336!important;font-weight:bold!important;padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;border-bottom:2px solid #f44336!important;">✖ Critical Failure</td></tr>
-<tr><td colspan="2" style="padding:0.5em 1em!important;border-top:0!important;border-right:0!important;border-left:0!important;border-bottom:0!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;"><b>The system encountered a fatal error.</b></span></td></tr>
-</tbody></table>
-</div>
-```
-
 **Note:** Type variants with numeric suffixes (e.g., `task-1`) are normalized to their base type (`task`). Unknown types default to `info`.
-
 ---
 
 ## 5. SAFE ELEMENTS & PROPERTIES (no conversion needed)

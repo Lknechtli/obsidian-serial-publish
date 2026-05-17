@@ -1,23 +1,31 @@
--- Royal Road Scrubber — Pandoc Lua Filter
-local heading_styles = {
-  [1] = 'font-size:2.0em;font-weight:bold;margin:1.5em 0 0.8em;',
-  [2] = 'font-size:1.6em;font-weight:bold;margin:1.3em 0 0.7em;',
-  [3] = 'font-size:1.3em;font-weight:bold;margin:1.1em 0 0.5em;',
-  [4] = 'font-size:1.1em;font-weight:bold;margin:0.9em 0 0.4em;',
-  [5] = 'font-size:1.0em;font-weight:bold;margin:0.7em 0 0.3em;',
-  [6] = 'font-size:0.9em;font-weight:bold;text-transform:uppercase;margin:0.6em 0 0.2em;',
-}
+-- Load settings from rr-convert.settings.lua
+local settings_path = os.getenv("RR_CONVERT_SETTINGS")
+if not settings_path or #settings_path == 0 then
+  -- Fallback: try same directory as the filter (via PANDOC_FILTER_SCRIPT_FILE or ARGV)
+  settings_path = nil  -- will use defaults below
+end
 
-local callout_colors = {
-  info = "#1e90ff", warning = "#ff5722", error = "#f44336", tip = "#4caf50"
-  , note = "#8bc34a", task = "#9c27b0", quote = "#607d8b", example = "#ba68c8"
-}
+local settings = {}
+if settings_path then
+  local ok, mod = pcall(dofile, settings_path)
+  if ok and type(mod) == "table" then
+    settings = mod
+  end
+end
 
-local callout_symbols = {
-  info = "\u{2139} ", warning = "\u{26A0} ", error = "\u{2716} "
-  , tip = "\u{25B6} ", note = "\u{270E} ", task = "\u{2611} ", quote = "\u{201C} "
-  , example = "\u{2637}"
-}
+-- Convenience accessors with safe defaults
+local heading_styles     = settings.headings     or {}
+local callout_defs       = settings.callouts     or {}
+local data_span_defs     = settings.data_spans   or {}
+local callout_table_cfg  = settings.callout_table or {}
+
+-- Derive color/symbol maps for validation (used by normalize_callout_type, try_parse_callout)
+local callout_colors = {}
+local callout_symbols = {}
+for k, v in pairs(callout_defs) do
+  callout_colors[k]  = v.color
+  callout_symbols[k] = v.symbol or ""
+end
 
 local function normalize_callout_type(t)
   if callout_colors[t] then return t end
@@ -199,9 +207,17 @@ local function process_section(raw_html, is_error)
 
   rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
 
-  rendered = rendered:gsub("<span%s+([^>]*)data%-glitch=\"\"([^>]*)>(.-)</span>", function(pre, post, inner)
-    return '<b style="text-shadow:-1px 0 0 rgba(255,0,0,0.7),1px 0 0 rgba(0,255,255,0.7)!important;">' .. inner .. '</b>'
-  end)
+  -- Apply each data-* span style from settings
+  for key, def in pairs(data_span_defs) do
+    local tag = def.tag or "span"
+    local style = def.style or ""
+    rendered = rendered:gsub(
+      "<span%s+([^>]*)data%-" .. key .. "=\"\"([^>]*)>(.-)</span>",
+      function(_, _, inner)
+        return '<' .. tag .. (style and (' style="' .. style .. '">') or '>') .. inner .. '</' .. tag .. '>'
+      end
+    )
+  end
 
   local lines = {}
   local parts = {}
@@ -232,15 +248,20 @@ local function process_section(raw_html, is_error)
 end
 
 local function build_table_html(callout_type, title, processed_sections)
-  local color = callout_colors[callout_type] or "#9e9e9e"
-  local is_error = (callout_type == "error")
-  local shadow_color = color .. "66"
-  local shadow_style = 'box-shadow: -4px 4px 0 ' .. shadow_color .. '!important;'
+  local def = callout_defs[callout_type] or {}
+  local color = def.color or "#9e9e9e"
 
-  local border_style = 'border:4px solid ' .. color .. '!important;'
-  if is_error then
-    border_style = 'box-shadow: -2px -1px 0 #ff0000!important, 2px 1px 0 #00ffff!important, -3px 2px 0 rgba(255,0,0,0.4)!important, 3px -2px 0 rgba(0,255,255,0.4)!important, -4px 4px 0 #f4433666!important;'
-    border_style = border_style .. 'border: 4px solid #f44336!important;'
+  -- Shadow and border from settings
+  local shadow_tpl = callout_table_cfg.shadow or 'box-shadow: -4px 4px 0 %s66!important;'
+  local border_tpl = callout_table_cfg.border or 'border:4px solid %s!important;'
+  local shadow_style = shadow_tpl:format(color)
+  local border_style = border_tpl:format(color)
+
+  -- Error override
+  local err = def.error_override
+  if err then
+    shadow_style = err.shadow or shadow_style
+    border_style = err.border or border_style
   end
 
   local num_body_sections = 0
@@ -248,24 +269,33 @@ local function build_table_html(callout_type, title, processed_sections)
     if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
   end
 
-  local html = '<div style="max-width:60ch!important;margin:auto;"><table style="border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;'
-  html = html .. (is_error and '' or shadow_style) .. border_style .. '"><tbody>'
+  -- Wrapper + table opening
+  local wrapper_style = callout_table_cfg.wrapper_style or 'max-width:60ch!important;margin:auto;'
+  local table_style   = callout_table_cfg.table_style   or 'border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;'
+  local html = '<div style="' .. wrapper_style .. '"><table style="' .. table_style .. shadow_style .. border_style .. '"><tbody>'
 
+  -- Title row
+  local heading_style_tpl = def.heading_style or 'background:%s!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;'
   if title then
     local esc_title = escape_html(title)
-    local bottom_border = num_body_sections > 0 and ('border-bottom:2px solid ' .. color .. '!important;') or ''
-    local dots = '<span style="color:#ff5f57!important;">&#11044;</span>&#8201;<span style="color:#febc2e!important;">&#11044;</span>&#8201;<span style="color:#28c840!important;">&#11044;</span>&ensp;'
-    html = html .. '<tr><td style="background:' .. color .. '!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;' .. bottom_border .. '">' .. dots .. esc_title .. '</td></tr>'
+    local heading_style = heading_style_tpl:format(color)
+    local border_heading_tpl = def.border_heading or 'border-bottom:2px solid %s!important;'
+    local bottom_border = num_body_sections > 0 and border_heading_tpl:format(color) or ''
+    local prefix = callout_table_cfg.title_prefix or ''
+    html = html .. '<tr><td style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
   end
 
+  -- Body rows
+  local body_style     = def.body_style     or 'padding:0.5em 1em!important;border:none!important;'
+  local border_between = def.border_between or 'border-bottom:1px solid %s!important;'
   local rendered_count = 0
   for _, section_html in ipairs(processed_sections) do
     local trimmed = section_html:gsub("^%s*$", "")
     if #trimmed > 0 then
       rendered_count = rendered_count + 1
       local is_last = (rendered_count == num_body_sections)
-      local sep_border = not is_last and ('border-bottom:1px solid ' .. color .. '!important;') or ''
-      html = html .. '<tr><td style="padding:0.5em 1em!important;border:none!important;' .. sep_border .. '">' .. section_html .. '</td></tr>'
+      local sep_border = not is_last and border_between:format(color) or ''
+      html = html .. '<tr><td style="' .. body_style .. sep_border .. '">' .. section_html .. '</td></tr>'
     end
   end
 
@@ -684,7 +714,7 @@ return {
 
   -- Style horizontal dividers with margin, max-width, and chromatic aberration
   HorizontalRule = function()
-    return pandoc.RawBlock("html", '<hr style="margin:1em auto!important;max-width:80%!important;border:none!important;height:2px!important;background:#ddd!important;box-shadow:-1px 0 0 rgba(255,0,0,0.6),1px 0 0 rgba(0,255,255,0.6)!important;" />')
+    return pandoc.RawBlock("html", settings.horizontal_rule or '<hr style="margin:1em auto!important;max-width:80%!important;border:none!important;height:2px!important;background:#ddd!important;box-shadow:-1px 0 0 rgba(255,0,0,0.6),1px 0 0 rgba(0,255,255,0.6)!important;" />')
   end,
 
   -- Wrap entire document body in a max-width div for readable line length; strip multi-line Obsidian comments
@@ -709,7 +739,8 @@ return {
       ::continue::
     end
     doc.blocks = filtered
-    doc.blocks = pandoc.Div(doc.blocks, {style = "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"})
+    local wrapper_style = settings.doc_wrapper_style or "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"
+    doc.blocks = pandoc.Div(doc.blocks, {style = wrapper_style})
     return doc
   end,
 
