@@ -1,8 +1,45 @@
 -- rr-convert.settings.lua
 -- Configuration for the Royal Road Pandoc Lua filter.
--- Edit this file to customize styles without touching the filter logic.
+--
+-- rr_defaults: Royal Road native theme. Rendered as a <style> block at the
+--    top of output. RR strips <style> tags, so these are no-ops on RR.
+--    Standalone browsers use them for faithful rendering.
+-- User overrides: everything else in this return table. Only values that
+--    differ from rr_defaults produce inline style="..." attributes (which
+--    RR preserves). If you don't override, there are zero inline styles.
 
-return {
+local rr_defaults = {
+
+  -- =========================================================================
+  -- FONT
+  -- Default document font. Applied via .rr-theme class in the <style> block.
+  -- =========================================================================
+  font = {
+    family     = 'Open Sans, Arial, sans-serif',
+    import_url = 'https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap',
+  },
+
+  -- =========================================================================
+  -- INLINE CODE
+  -- Royal Road's native <code> styling. Applied via .rr-code class.
+  -- =========================================================================
+  code = {
+    inline_style = 'background-color:#6d737b;color:#dfdee4;font-family:consolas,monospace;font-size:14px;line-height:20px;padding:1.6px 3.2px;border-radius:3px;display:inline;overflow-wrap:break-word;',
+  },
+  fenced = {
+    inline_style = 'background-color:#6d737b;color:#dfdee4;font-family:consolas,monospace;font-size:14px;line-height:20px;padding:1.6px 3.2px;border-radius:3px;display:block;overflow-wrap:break-word;white-space:pre;',
+  },
+
+  -- =========================================================================
+  -- HORIZONTAL RULE
+  -- Royal Road's native <hr> styling. Applied via .rr-hr class.
+  -- =========================================================================
+  hr = {
+    inline_style = 'border-top:1px solid #6d737b;border-bottom:none;border-left:none;border-right:none;',
+  },
+}
+
+return { rr_defaults = rr_defaults,
 
   -- =========================================================================
   -- HEADING STYLES
@@ -140,4 +177,11 @@ return {
   -- DOCUMENT WRAPPER
   -- =========================================================================
   doc_wrapper_style = 'max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;',
+
+  -- =========================================================================
+  -- INLINE CODE OVERRIDE
+  -- display:inline MUST be inline (not just in <style>) because RR strips
+  -- <style> blocks. Without this, inline code renders as block on RR.
+  -- =========================================================================
+  code = { inline_style = 'display:inline!important;' },
 }

@@ -13,11 +13,22 @@ if settings_path then
   end
 end
 
--- Convenience accessors with safe defaults
+local rr_defaults = settings.rr_defaults or {}
+
+-- Convenience accessors: user override first, then RR default, then empty
 local heading_styles     = settings.headings     or {}
 local callout_defs       = settings.callouts     or {}
 local data_span_defs     = settings.data_spans   or {}
 local callout_table_cfg  = settings.callout_table or {}
+local code_override      = settings.code         or nil
+local font_override      = settings.font         or nil
+local fenced_override    = settings.fenced       or nil
+local hr_override        = settings.hr           or nil
+
+-- Effective config: override if set, else RR default
+local code_cfg = code_override or rr_defaults.code or {}
+local font_cfg = font_override or rr_defaults.font or {}
+local fenced_cfg = fenced_override or rr_defaults.fenced or {}
 
 -- Derive color/symbol maps for validation (used by normalize_callout_type, try_parse_callout)
 local callout_colors = {}
@@ -681,18 +692,28 @@ return {
     return fig
   end,
 
-  -- Inline code: add display:inline to override RR's default block rendering
+  -- Inline code: class="rr-code" (styled by <style> block standalone).
+  -- Inline style only added when user overrides rr_defaults.code.
   Code = function(el)
     local txt = el.text or (el.c and el.c[2]) or ""
-    return pandoc.RawInline("html", '<code style="display:inline!important;">' .. escape_html(txt) .. '</code>')
+    local attr = ' class="rr-code"'
+    if code_override and code_override.inline_style then
+      attr = attr .. ' style="' .. code_override.inline_style .. '"'
+    end
+    return pandoc.RawInline("html", '<code' .. attr .. '>' .. escape_html(txt) .. '</code>')
   end,
 
-  -- Fenced code blocks: strip <pre> (RR strips <pre> tags); output raw <code>
+  -- Fenced code blocks: class="rr-code-block" (styled by <style> block standalone).
+  -- Inline style only added when user overrides rr_defaults.fenced.
   CodeBlock = function(cb)
     local lang = cb.attributes.language or ""
     local code = escape_html(cb.text)
-    local inner = '<code' .. (#lang > 0 and (' class="sourceCode ' .. lang .. '">') or '>') .. code .. '</code>'
-    return pandoc.RawBlock("html", '<div class="sourceCode">' .. inner .. '</div>')
+    local cls = 'rr-code-block' .. (#lang > 0 and (' sourceCode ' .. lang) or '')
+    local attr = ' class="' .. cls .. '"'
+    if fenced_override and fenced_override.inline_style then
+      attr = attr .. ' style="' .. fenced_override.inline_style .. '"'
+    end
+    return pandoc.RawBlock("html", '<div class="sourceCode"><code' .. attr .. '>' .. code .. '</code></div>')
   end,
 
   Div = function(div)
@@ -712,12 +733,22 @@ return {
     return div
   end,
 
-  -- Style horizontal dividers with margin, max-width, and chromatic aberration
+  -- Horizontal rule: class="rr-hr" (styled by <style> block standalone).
+  -- If user sets horizontal_rule in config, it overrides the entire element.
   HorizontalRule = function()
-    return pandoc.RawBlock("html", settings.horizontal_rule or '<hr style="margin:1em auto!important;max-width:80%!important;border:none!important;height:2px!important;background:#ddd!important;box-shadow:-1px 0 0 rgba(255,0,0,0.6),1px 0 0 rgba(0,255,255,0.6)!important;" />')
+    if settings.horizontal_rule then
+      return pandoc.RawBlock("html", settings.horizontal_rule)
+    end
+    local attr = ' class="rr-hr"'
+    if hr_override and hr_override.inline_style then
+      attr = attr .. ' style="' .. hr_override.inline_style .. '"'
+    end
+    return pandoc.RawBlock("html", '<hr' .. attr .. '>')
   end,
 
-  -- Wrap entire document body in a max-width div for readable line length; strip multi-line Obsidian comments
+  -- Wrap entire document in styled div; inject <style> block for standalone viewing.
+  -- RR strips <style> tags and custom classes, so these are no-ops on RR.
+  -- Standalone browsers use them for faithful rendering.
   Pandoc = function(doc)
     -- Strip block-level %%...%% comments (spanning multiple paragraphs; Para handler wraps them in Divs)
     local filtered = pandoc.List:new()
@@ -739,8 +770,49 @@ return {
       ::continue::
     end
     doc.blocks = filtered
+
+    -- Build <style> block from rr_defaults (stripped by RR, preserved standalone)
+    local rules = {}
+    local rr_font = rr_defaults.font
+    if rr_font and rr_font.family then
+      table.insert(rules, '.rr-theme{font-family:' .. rr_font.family .. '}')
+    end
+    local rr_code = rr_defaults.code
+    if rr_code and rr_code.inline_style then
+      table.insert(rules, '.rr-code{' .. rr_code.inline_style .. '}')
+    end
+    local rr_fenced = rr_defaults.fenced
+    if rr_fenced and rr_fenced.inline_style then
+      table.insert(rules, '.rr-code-block{' .. rr_fenced.inline_style .. '}')
+    end
+    local rr_hr = rr_defaults.hr
+    if rr_hr and rr_hr.inline_style then
+      table.insert(rules, '.rr-hr{' .. rr_hr.inline_style .. '}')
+    end
+    local css = table.concat(rules, "")
+    local style_block = pandoc.RawBlock("html", '<style>' .. css .. '</style>')
+
+    -- Inject Google Fonts link if configured (stripped by RR, preserved standalone)
+    local head_blocks = pandoc.List:new{style_block}
+    local import_url = font_cfg.import_url
+    if import_url and #import_url > 0 then
+      table.insert(head_blocks, 1, pandoc.RawBlock("html", '<link href="' .. import_url .. '" rel="stylesheet">'))
+    end
+
+    -- Wrapper div: class for standalone, inline styles only for overrides
     local wrapper_style = settings.doc_wrapper_style or "max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;"
-    doc.blocks = pandoc.Div(doc.blocks, {style = wrapper_style})
+    if font_override and font_override.family then
+      wrapper_style = wrapper_style .. 'font-family:' .. font_override.family .. '!' .. 'important;'
+    end
+
+    -- Build doc as: [head_blocks, <div open>, content, </div>]
+    local final = pandoc.List:new(head_blocks)
+    final:insert(pandoc.RawBlock("html", '<div class="rr-theme" style="' .. wrapper_style .. '">'))
+    for _, blk in ipairs(filtered) do
+      final:insert(blk)
+    end
+    final:insert(pandoc.RawBlock("html", '</div>'))
+    doc.blocks = final
     return doc
   end,
 
