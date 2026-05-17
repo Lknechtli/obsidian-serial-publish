@@ -52,13 +52,13 @@ if (-not $pandoc) {
     exit 1
 }
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 # Preprocess: replace \[ with SOH+LB and \] with SOH+RB
 $SOH_LB = [char]0x01 + "LB"
 $SOH_RB = [char]0x01 + "RB"
-$content = Get-Content -Raw -Path $InputFile
+$content = [System.IO.File]::ReadAllText($InputFile, [System.Text.Encoding]::UTF8)
 $content = $content -replace '\\\[', $SOH_LB
 $content = $content -replace '\\\]', $SOH_RB
-
 # Build pandoc arguments
 $pandocArgs = @(
     "--from", "markdown+fenced_divs",
@@ -73,5 +73,11 @@ if ($OutputFile) {
 # Set environment variable for settings
 $env:RR_CONVERT_SETTINGS = $Settings
 
-# Run pandoc — pipe preprocessed content via stdin
-$content | & $pandoc @pandocArgs 2>&1
+# Run pandoc with temp file to preserve UTF-8 encoding
+$TempFile = [System.IO.Path]::GetTempFileName()
+try {
+    [System.IO.File]::WriteAllText($TempFile, $content, [System.Text.Encoding]::UTF8)
+    & $pandoc @pandocArgs $TempFile 2>&1
+} finally {
+    Remove-Item $TempFile -ErrorAction SilentlyContinue
+}
