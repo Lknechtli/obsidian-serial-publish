@@ -232,32 +232,24 @@ local function process_section(raw_html, is_error)
       rendered = rendered:gsub(cfg.pattern, cfg.replacer)
     end
   end
-
   local lines = {}
-  local parts = {}
-  local tmp = rendered:gsub("^%s*$", ""):gsub("%s+$", "")
-  if #tmp > 0 then
-    while true do
-      local pos = tmp:find("<br />")
-      if not pos then
-        table.insert(parts, tmp)
-        break
-      end
-      table.insert(parts, tmp:sub(1, pos - 1))
-      tmp = tmp:sub(pos + 6)
-    end
-    for _, line in ipairs(parts) do
+  rendered = rendered:gsub("\n", "<br />")
+  if rendered ~= "" then
+    rendered = rendered:gsub("<br />", "\x01")
+    for segment in rendered:gmatch("[^\1]+") do
       local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
-      if #line == 0 then
+      if #segment == 0 then
         span_style = span_style .. "height:1em!important;"
       end
-      table.insert(lines, '<span style="' .. span_style .. '">' .. line .. '</span>')
+      table.insert(lines, '<span style="' .. span_style .. '">' .. segment .. '</span>')
+    end
+    -- Handle trailing <br /> (empty last segment)
+    if rendered:sub(-1) == "\x01" then
+      local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;height:1em!important;"
+      table.insert(lines, '<span style="' .. span_style .. '"></span>')
     end
     rendered = table.concat(lines)
-  else
-    rendered = ""
   end
-
   return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
 end
 
