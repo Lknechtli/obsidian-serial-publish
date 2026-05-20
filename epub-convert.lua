@@ -23,48 +23,44 @@ local function normalize_callout_type(t)
   return nil
 end
 
--- Extract callout type and title from inline content
+-- Extract callout type and title from inline content (single pass, no list mutation)
 -- Title is text between marker and first line break
 -- Returns: (type, title, body_inlines)
 local function extract_callout_info(inlines)
+  local callout_type = nil
+  local title_parts = {}
+  local body_start = 0
+
   for i, inline in ipairs(inlines) do
-    if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-      local ctype = inline.text:match("^%[!(.-)%]")
-      -- Title is between marker and first break
-      local title_parts = {}
-      local past_break = false
-      local body_inlines = pandoc.List:new()
-
-      for j = i + 1, #inlines do
-        local elem = inlines[j]
-        if not past_break then
-          if elem.t == "LineBreak" or elem.t == "SoftBreak" then
-            past_break = true
-          else
-            if elem.t == "Str" and elem.text then
-              table.insert(title_parts, elem.text)
-            elseif elem.t == "Space" then
-              table.insert(title_parts, " ")
-            end
-          end
-        else
-          body_inlines:insert(elem)
-        end
+    if not callout_type then
+      -- State: looking for [!type] marker
+      if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
+        callout_type = inline.text:match("^%[!(.-)%]")
+        local after_marker = inline.text:gsub("^%[!.-%]", "")
+        if #after_marker > 0 then table.insert(title_parts, after_marker) end
       end
-
-      local title = table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", "")
-      -- Trim body
-      while #body_inlines > 0 and body_inlines[1].t == "Space" do
-        body_inlines:remove(1)
+    elseif body_start == 0 then
+      -- State: collecting title until line break; track where body starts
+      if inline.t == "LineBreak" or inline.t == "SoftBreak" then
+        body_start = i + 1
+        break
+      elseif inline.t == "Space" or inline.t == "SoftBreak" then
+        table.insert(title_parts, " ")
+      elseif inline.t == "Str" and inline.text then
+        table.insert(title_parts, inline.text)
       end
-      while #body_inlines > 0 and body_inlines[#body_inlines].t == "Space" do
-        body_inlines:remove(#body_inlines)
-      end
-
-      return ctype, title, body_inlines
     end
   end
-  return nil, nil, pandoc.List:new()
+
+  if not callout_type then return nil, nil, pandoc.List:new() end
+
+  -- Build body list from index (no mutation of original list)
+  local body_inlines = pandoc.List:new()
+  for i = body_start, #inlines do
+    table.insert(body_inlines, inlines[i])
+  end
+
+  return callout_type, table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", ""), body_inlines
 end
 
 -- Build a callout as a styled div with CSS class
