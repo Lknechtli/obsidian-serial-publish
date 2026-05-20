@@ -402,140 +402,72 @@ return {
 
         local text = elem.text
 
-        if text:match("^%[%[") and #text > 2 and not text:match("%]%]") then
-
-          -- Look ahead for closing ]] or ]]] in subsequent elements
-
-          local found_close = false
-
-          local found_triple = false
-
+        if text:match("^%[%[") and #text > 2 then
+          -- Check for complete wiki link in a single element or spanning multiple elements
           local full_text = ""
-
+          local found_close = false
+          local found_triple = false
           local j = i
 
           while j <= #para.content do
-
             local next_elem = para.content[j]
-
             if next_elem.t == "Str" and next_elem.text then
-
               full_text = full_text .. (next_elem.text)
-
-              if full_text:match("%]%]%]") then
-
-                found_triple = true
-
-                found_close = true
-
-                break
-
+              -- Check for triple close first, then regular close
+              if not found_close then
+                if full_text:match("%]%]%]") then
+                  found_triple = true
+                  found_close = true
+                elseif full_text:match("%]%]") then
+                  found_close = true
+                end
               end
-
-              if full_text:match("%]%]") then
-
-                found_close = true
-
-                break
-
-              end
-
             elseif next_elem.t == "Space" then
-
               full_text = full_text .. " "
-
             else
-
               break
-
             end
-
+            if found_close then break end
             j = j + 1
-
           end
 
           if found_close then
-
             -- Triple brackets [[[Text]]] → literal [[Text]]
-
             if found_triple then
-
               local triple_match, remainder = full_text:match("^%[%[%[(.-)%]%]%](.*)")
-
               if triple_match then
-
                 local trimmed = triple_match:gsub("^%s+",""):gsub("%s+$","")
-
                 local prefix = " "
-
-                local suffix = " "
-
-                if remainder and #remainder > 0 then
-
-                  suffix = ""
-
-                end
-
+                local suffix = ""
+                if remainder and #remainder > 0 then suffix = "" end
                 new_content:insert(pandoc.Str(prefix .. "[[" .. trimmed .. "]]" .. suffix))
-
                 if remainder and #remainder > 0 then
-
                   new_content:insert(pandoc.Str(remainder))
-
                 end
-
                 i = j + 1
-
                 goto continue
-
               end
-
             end
-
-            -- Regular wiki link [[Text]] → stripped
-
+            -- Regular wiki link [[Text]] → stripped (content replaced with trimmed text)
             local wiki_match, remainder = full_text:match("^%[%[(.-)%]%](.*)")
-
             if wiki_match then
-
               local trimmed = wiki_match:gsub("^%s+",""):gsub("%s+$","")
-
               local prefix = " "
-
-              local suffix = " "
-
-              if remainder and #remainder > 0 then
-
-                suffix = ""
-
-              end
-
+              local suffix = ""
+              if remainder and #remainder > 0 then suffix = "" end
               new_content:insert(pandoc.Str(prefix .. trimmed .. suffix))
-
             end
-
             if remainder and #remainder > 0 then
-
               new_content:insert(pandoc.Str(remainder))
-
             end
-
             i = j + 1
-
             goto continue
-
           else
-
             -- Can't find closing ]], treat as regular text
-
             new_content:insert(elem)
-
           end
-
           i = i + 1
-
           goto continue
-
         elseif text:match("\\(%[%])") then
 
           -- Unescape brackets
@@ -633,32 +565,10 @@ return {
   -- Unescape brackets and delete wiki links in inline text nodes
 
   Str = function(str)
-
     if not str or not str.text then return str end
-
-    local original = str.text
-
-    -- Don't delete if contains escape markers (will be converted in Para/Plain handler)
-    if original:find("\1LB") or original:find("\1RB") then return str end
-
-    -- Triple brackets [[[Text]]] → literal [[Text]]
-    local triple = original:match("^%[%[%[(.+)%]%]%]$")
-    if triple then return pandoc.Str("[[" .. triple .. "]]") end
-
-    -- Delete wiki link patterns [[Text]]
-
-    if original:match("^%[%[.-%]%]$") then return {} end
-
-
-    -- Unescape brackets
-
-    local s = original:gsub("%\\([%[%]])", "%1")
-
-    if s ~= original then return pandoc.Str(s) end
-
-
+    -- Passthrough: escape markers are handled in Para/Plain handler
+    if str.text:find("\1LB") or str.text:find("\1RB") then return str end
     return str
-
   end,
 
 
