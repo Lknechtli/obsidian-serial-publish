@@ -121,37 +121,32 @@ inline_to_html = function(el)
 end
 
 local function extract_callout_title(inlines)
-  local marker_idx = 0
   local callout_type = nil
-  for i, inline in ipairs(inlines) do
-    if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
-      callout_type = inline.text:match("^%[!(.-)%]")
-      marker_idx = i
-      break
-    end
-  end
-  if marker_idx == 0 then return nil, nil, 0 end
-
-  local break_idx = 0
-  for i = marker_idx + 1, #inlines do
-    if inlines[i].t == "LineBreak" or inlines[i].t == "SoftBreak" then
-      break_idx = i
-      break
-    end
-  end
-
   local title_parts = {}
-  local limit = break_idx > 0 and (break_idx - 1) or #inlines
-  for i = marker_idx + 1, limit do
-    local inline = inlines[i]
-    if inline.t == "LineBreak" or inline.t == "SoftBreak" then break end
-    if inline.t == "Space" or inline.t == "SoftBreak" then
-      table.insert(title_parts, " ")
-    elseif inline.t == "Str" and inline.text then
-      table.insert(title_parts, inline.text)
+  local break_idx = 0
+
+  for i, inline in ipairs(inlines) do
+    if not callout_type then
+      -- State: looking for [!type] marker
+      if inline.t == "Str" and inline.text and inline.text:match("^%[!(.-)%]") then
+        callout_type = inline.text:match("^%[!(.-)%]")
+        local after_marker = inline.text:gsub("^%[!.-%]", "")
+        if #after_marker > 0 then table.insert(title_parts, after_marker) end
+      end
+    elseif break_idx == 0 then
+      -- State: collecting title until line break
+      if inline.t == "LineBreak" or inline.t == "SoftBreak" then
+        break_idx = i
+        break
+      elseif inline.t == "Space" or inline.t == "SoftBreak" then
+        table.insert(title_parts, " ")
+      elseif inline.t == "Str" and inline.text then
+        table.insert(title_parts, inline.text)
+      end
     end
   end
 
+  if not callout_type then return nil, nil, 0 end
   return callout_type, table.concat(title_parts, ""):gsub("^%s+", ""):gsub("%s+$", ""), break_idx
 end
 
