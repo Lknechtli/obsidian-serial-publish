@@ -24,6 +24,18 @@ local code_override      = settings.code         or nil
 local font_override      = settings.font         or nil
 local fenced_override    = settings.fenced       or nil
 local hr_override        = settings.hr           or nil
+-- Precompile data-span patterns at load time (one per defined key)
+local data_span_patterns = {}
+for key, def in pairs(data_span_defs) do
+  local tag = def.tag or "span"
+  local style = def.style or ""
+  table.insert(data_span_patterns, {
+    pattern = "<span%s+([^>]*)data%-" .. key .. "=\"\"([^>]*)>(.-)</span>",
+    replacer = function(_, _, inner)
+      return '<' .. tag .. (style and (' style="' .. style .. '">') or '>') .. inner .. '</' .. tag .. '>'
+    end,
+  })
+end
 
 -- Effective config: override if set, else RR default
 local code_cfg = code_override or rr_defaults.code or {}
@@ -214,16 +226,11 @@ local function process_section(raw_html, is_error)
 
   rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
 
-  -- Apply each data-* span style from settings
-  for key, def in pairs(data_span_defs) do
-    local tag = def.tag or "span"
-    local style = def.style or ""
-    rendered = rendered:gsub(
-      "<span%s+([^>]*)data%-" .. key .. "=\"\"([^>]*)>(.-)</span>",
-      function(_, _, inner)
-        return '<' .. tag .. (style and (' style="' .. style .. '">') or '>') .. inner .. '</' .. tag .. '>'
-      end
-    )
+  -- Apply each data-* span style from settings (skip if no data- attributes present)
+  if rendered:find("data-") then
+    for _, cfg in ipairs(data_span_patterns) do
+      rendered = rendered:gsub(cfg.pattern, cfg.replacer)
+    end
   end
 
   local lines = {}
