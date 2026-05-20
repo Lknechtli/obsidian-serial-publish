@@ -67,11 +67,11 @@ end
 
 local inline_to_html
 local function collect_inner(content)
-  local inner = ""
+  local parts = {}
   for _, child in ipairs(content) do
-    inner = inner .. inline_to_html(child)
+    table.insert(parts, inline_to_html(child))
   end
-  return inner
+  return table.concat(parts)
 end
 
 inline_to_html = function(el)
@@ -91,28 +91,28 @@ inline_to_html = function(el)
   end
   if el.t == "Link" then
     local url = (el.target or "")
-    return '<a href="' .. url:gsub('"','&quot;') .. '">' .. collect_inner(el.content) .. '</a>'
+    return table.concat({'<a href="', url:gsub('"','&quot;'), '">'}, '') .. collect_inner(el.content) .. '</a>'
   end
   if el.t == "Image" then
     local src = (el.source or "")
-    local alt_text = ""
+    local alt_parts = {}
     for _, child in ipairs(el.content) do
-      if child.t == "Str" then alt_text = alt_text .. child.text end
+      if child.t == "Str" then table.insert(alt_parts, child.text) end
     end
-    return '<img src="' .. src:gsub('"','&quot;') .. '" alt="' .. alt_text:gsub('"','&quot;') .. '">'
+    return '<img src="' .. src:gsub('"','&quot;') .. '" alt="' .. table.concat(alt_parts):gsub('"','&quot;') .. '">'
   end
   if el.t == "RawInline" and el.format == "html" then return el.text or "" end
   if el.t == "Span" and el.content then
     local inner = collect_inner(el.content)
     local attrs = el.attributes or el.attr or {}
-    local data_attrs = ""
+    local data_parts = {}
     for k, v in pairs(attrs) do
       if k:match("^data-") then
-        data_attrs = data_attrs .. ' ' .. k .. '="' .. v .. '"'
+        table.insert(data_parts, ' ' .. k .. '="' .. v .. '"')
       end
     end
-    if #data_attrs > 0 then
-      return '<span' .. data_attrs .. '>' .. inner .. '</span>'
+    if #data_parts > 0 then
+      return '<span' .. table.concat(data_parts) .. '>' .. inner .. '</span>'
     end
     return inner
   end
