@@ -77,22 +77,19 @@ local function convert_callout(callout_type, title, bq_content)
   blocks:insert(pandoc.Header(2, pandoc.Str(title), pandoc.Attr("", {"callout-title"}, {})))
 
   -- Body content: extract from first para (after marker+title), then remaining blocks
-  local found_marker = false
-  for _, child in ipairs(bq_content or {}) do
-    if not found_marker and (child.t == "Para" or child.t == "Plain") and child.content then
+  local marker_idx = nil
+  for idx, child in ipairs(bq_content or {}) do
+    if not marker_idx and (child.t == "Para" or child.t == "Plain") and child.content then
       local ct, _, body_inlines = extract_callout_info(child.content)
       if ct then
-        found_marker = true
+        marker_idx = idx
         if #body_inlines > 0 then
           blocks:insert(pandoc.Para(body_inlines))
         end
-        goto continue
       end
-    end
-    if found_marker then
+    elseif marker_idx then
       blocks:insert(child)
     end
-    ::continue::
   end
 
   return pandoc.Div(blocks, attr)

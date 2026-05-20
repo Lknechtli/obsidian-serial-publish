@@ -1,10 +1,8 @@
--- Load settings from rr-convert.settings.lua
+-- Load settings from rr-convert.settings.lua (RR_CONVERT_SETTINGS env var)
 local settings_path = os.getenv("RR_CONVERT_SETTINGS")
 if not settings_path or #settings_path == 0 then
-  -- Fallback: try same directory as the filter (via PANDOC_FILTER_SCRIPT_FILE or ARGV)
-  settings_path = nil  -- will use defaults below
+  settings_path = nil
 end
-
 local settings = {}
 if settings_path then
   local ok, mod = pcall(dofile, settings_path)
