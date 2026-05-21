@@ -80,7 +80,7 @@ return { rr_defaults = rr_defaults,
   -- =========================================================================
   callout_table = {
     wrapper_style = 'max-width:60ch!important;margin:auto;',
-    table_style   = 'border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;',
+    table_style   = 'border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;',
     shadow        = 'box-shadow: -4px 4px 0 %s66!important;',
     border        = 'border:4px solid %s!important;',
     title_prefix  = '<span style="color:#ff5f57!important;">&#11044;</span>&#8201;<span style="color:#febc2e!important;">&#11044;</span>&#8201;<span style="color:#28c840!important;">&#11044;</span>&ensp;',
