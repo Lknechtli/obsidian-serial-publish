@@ -53,6 +53,8 @@ Use backslash-escaped brackets to output literal `[[Text]]` in the final HTML.
 
 The spell is \[\[Fireball\]\] and the place is \[\[Castle Ruins\]\].
 
+Escaped brackets inside quoted text also resolve correctly: "I was an \[Overlord]."
+
 ---
 
 ## Inline Code
@@ -105,6 +107,7 @@ Obsidian callout syntax becomes styled `<table>` elements. Royal Road strips `<p
 > [!info] About This Chapter
 > This chapter introduces the main characters.
 > Pay attention to the timeline.
+> \[Time Lock: 0:06:00]
 
 ### Tip Callout
 

@@ -79,7 +79,7 @@ return { rr_defaults = rr_defaults,
   --   %s in any string is replaced with the callout's hex color.
   -- =========================================================================
   callout_table = {
-    wrapper_style = 'max-width:60ch!important;margin:auto;',
+    wrapper_style = 'max-width:60ch!important;margin:auto;margin-bottom:1em!important;',
     table_style   = 'border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;',
     shadow        = 'box-shadow: -4px 4px 0 %s66!important;',
     border        = 'border:4px solid %s!important;',

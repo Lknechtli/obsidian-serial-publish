@@ -324,6 +324,41 @@ local function convert_callout(callout_type, title, bq_content)
   return pandoc.RawBlock("html", table_html)
 end
 
+local function convert_sentinels_in_text(text)
+  return text:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]"):gsub("\1LB", "["):gsub("\1RB", "]")
+end
+
+local function convert_sentinels_in_inline(elem)
+  if not elem then return elem end
+  if elem.t == "Str" and elem.text then
+    local s = convert_sentinels_in_text(elem.text)
+    if s ~= elem.text then
+      return pandoc.Str(s)
+    end
+    return elem
+  elseif elem.content and type(elem.content) == "table" then
+    local new_content = {}
+    for _, child in ipairs(elem.content) do
+      table.insert(new_content, convert_sentinels_in_inline(child))
+    end
+    elem.content = new_content
+    return elem
+  elseif elem.c and type(elem.c) == "table" then
+    -- Handle elements that use .c instead of .content (e.g. Quoted)
+    local new_c = {}
+    for _, child in ipairs(elem.c) do
+      if type(child) == "table" and (child.t or child[1]) then
+        table.insert(new_c, convert_sentinels_in_inline(child))
+      else
+        table.insert(new_c, child)
+      end
+    end
+    elem.c = new_c
+    return elem
+  end
+  return elem
+end
+
 return {
 
   -- Handle Obsidian callouts detected in blockquotes → RR-safe table blocks
@@ -372,6 +407,7 @@ return {
     return pandoc.RawBlock("html", '<div style="' .. style .. '">' .. escape_html(all_text) .. '</div>')
 
   end,
+
 
 
 
@@ -489,16 +525,7 @@ return {
      -- Convert escape markers to literal brackets
     local markers = pandoc.List:new()
     for _, elem in ipairs(new_content) do
-      if elem.t == "Str" and elem.text then
-        local s = elem.text:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]")
-        if s ~= elem.text then
-          markers:insert(pandoc.Str(s))
-        else
-          markers:insert(elem)
-        end
-      else
-        markers:insert(elem)
-      end
+      markers:insert(convert_sentinels_in_inline(elem))
     end
 
     para.content = markers
@@ -544,7 +571,7 @@ return {
     txt = txt:gsub("%[%[(.+)%]%]", function(match) return " "..match:gsub("^%s+",""):gsub("%s+$","").." " end)
 
     -- Convert escape markers to literal brackets
-    txt = txt:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]")
+    txt = txt:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]"):gsub("\1LB", "["):gsub("\1RB", "]")
 
     if type(txt) ~= "string" then txt = "" end
 
