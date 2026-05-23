@@ -23,6 +23,8 @@ local callout_table_cfg  = settings.callout_table or {}
 local code_override      = settings.code         or nil
 local font_override      = settings.font         or nil
 local fenced_override    = settings.fenced       or nil
+-- Data-* span effects (class-based output for theme CSS)
+local data_span_defs   = settings.data_spans or {}
 
 local code_cfg   = code_override or rr_defaults.code or {}
 local font_cfg   = font_override or rr_defaults.font or {}
@@ -470,6 +472,17 @@ return {
   HorizontalRule = function()
     return pandoc.RawBlock("html", '<hr>')
   end,
+  -- Span: convert data-* attributes to class-based spans for theme CSS
+  Span = function(span)
+    local attrs = span.attributes or span.attr or {}
+    for attr in pairs(attrs) do
+      local effect = attr:match("^data%-(.+)$")
+      if effect and data_span_defs[effect] then
+        return pandoc.RawInline("html", '<span class="gh-' .. effect .. '">' .. pandoc.utils.stringify(span.content) .. '</span>')
+      end
+    end
+    return span
+  end,
 
   -- Wrap document in .rr-theme div for Ghost theme CSS custom properties
   Pandoc = function(doc)
@@ -494,110 +507,9 @@ return {
     end
     doc.blocks = filtered
 
-    -- Build <style> block from rr_defaults (Ghost HTML card is isolated from theme CSS)
-    local rules = {}
-
-    -- Font
-    local rr_font = font_cfg
-    if rr_font and (rr_font.family or rr_font.size) then
-      local parts = {}
-      if rr_font.family then table.insert(parts, 'font-family:' .. rr_font.family) end
-      if rr_font.size then table.insert(parts, 'font-size:' .. rr_font.size) end
-      local wrapper_style = settings.doc_wrapper_style or 'max-width:80ch;margin-left:auto;margin-right:auto;'
-      table.insert(rules, '.gh-content{' .. table.concat(parts, ';') .. ';' .. wrapper_style .. '}')
-    end
-
-    -- Headings — use em so Ghost reading prefs cascade
-    local heading_rules = {}
-    for level = 1, 6 do
-      local style = heading_styles[level]
-      if style then
-        table.insert(heading_rules, '.gh-content h' .. level .. '{' .. style .. '}')
-      end
-    end
-    if #heading_rules > 0 then
-      table.insert(rules, table.concat(heading_rules, ''))
-    end
-
-    -- Inline code: merge rr_defaults with user override
-    local code_style = (rr_defaults.code or {}).inline_style or ""
-    if code_override and code_override.inline_style then
-      code_style = code_style .. code_override.inline_style
-    end
-    if #code_style > 0 then
-      table.insert(rules, '.gh-code{' .. code_style .. '}')
-    end
-
-    -- Fenced code blocks: merge rr_defaults with user override
-    local fenced_style = (rr_defaults.fenced or {}).inline_style or ""
-    if fenced_override and fenced_override.inline_style then
-      fenced_style = fenced_style .. fenced_override.inline_style
-    end
-    if #fenced_style > 0 then
-      table.insert(rules, '.gh-code-block{' .. fenced_style .. '}')
-    end
-
-    -- Horizontal rule
-    local rr_hr = (rr_defaults.hr or {})
-    if rr_hr and rr_hr.inline_style then
-      table.insert(rules, '.gh-content hr{' .. rr_hr.inline_style .. '}')
-    end
-
-    -- Callout CSS classes
-    local cfg = callout_table_cfg or {}
-    local shadow_tpl = cfg.shadow or 'box-shadow:-4px 4px 0 %s66;'
-    local border_tpl = cfg.border or 'border:4px solid %s;'
-    local table_base = (cfg.table_style or '') .. ';'
-
-    -- Per-type color custom property + shadow/border
-    for ctype, def in pairs(callout_defs) do
-      local color = def.color
-      local shadow = shadow_tpl:format(color)
-      local border = border_tpl:format(color)
-      local err = def.error_override
-      if err then
-        shadow = err.shadow or shadow
-        border = err.border or border
-      end
-      table.insert(rules,
-        '.gh-callout--' .. ctype .. '{--gh-color:' .. color .. ';' .. shadow .. border .. '}')
-    end
-
-    -- Base callout wrapper
-    local wrapper_css = cfg.wrapper_style or 'max-width:60ch;margin:auto;margin-bottom:1em;'
-    table.insert(rules, '.gh-callout{' .. wrapper_css .. '}')
-
-    -- Table base styles (border-collapse, background, etc.)
-    table.insert(rules, '.gh-callout-table{' .. table_base .. '}')
-
-    -- Header cell — uses var(--gh-color) for background/border
-    local header_style = 'background:var(--gh-color);color:#1a1a2e;font-weight:bold;padding:0.5em 1em 0.5em 0.3em;border:none;'
-    table.insert(rules, '.gh-callout-header{' .. header_style .. '}')
-
-    -- Body cell
-    local body_style = 'padding:0.5em 1em;border:none;'
-    table.insert(rules, '.gh-callout-body{' .. body_style .. '}')
-
-    -- Separator between sections
-    local sep_style = 'border-top:1px solid var(--gh-color);'
-    table.insert(rules, '.gh-callout-separator{' .. sep_style .. '}')
-
-    -- Indent span
-    table.insert(rules, '.gh-callout-indent{display:block;padding-left:1em;text-indent:-1em;}')
-
-    local css = table.concat(rules, "")
-    local style_block = pandoc.RawBlock("html", '<style>' .. css .. '</style>')
-
-    -- Inject Google Fonts link if configured
-    local head_blocks = pandoc.List:new{style_block}
-    local import_url = font_cfg.import_url
-    if import_url and #import_url > 0 then
-      table.insert(head_blocks, 1, pandoc.RawBlock("html", '<link href="' .. import_url .. '" rel="stylesheet">'))
-    end
-
-    -- Wrapper div (no inline style — uses .gh-content class)
-    local final = pandoc.List:new(head_blocks)
-    final:insert(pandoc.RawBlock("html", '<div class="gh-content">'))
+    -- Wrap content in .rr-theme div for theme CSS (no embedded <style>)
+    local final = pandoc.List:new()
+    final:insert(pandoc.RawBlock("html", '<div class="rr-theme">'))
     for _, blk in ipairs(filtered) do
       final:insert(blk)
     end

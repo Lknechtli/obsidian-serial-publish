@@ -31,6 +31,14 @@ This is **bold**, _italic_, and ~~strikethrough~~ text.
 
 ---
 
+## Chromatic Aberration (data-glitch)
+
+Use `<span data-glitch="">` for a chromatic aberration text-shadow effect.
+
+<span data-glitch="">This text has a glitch effect</span>
+
+---
+
 ## Links (preserved)
 
 Regular URLs pass through as `<a>` tags — Royal Road supports them natively.
