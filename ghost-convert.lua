@@ -170,64 +170,31 @@ local function process_section(raw_html, is_error)
   end
   local rendered = clean_body:gsub("\n", "<br />")
 
-  -- Wrap in span for padding/indent
-  local prefix_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
-  rendered = '<span style="' .. prefix_style .. '">' .. rendered .. '</span>'
-
+  -- Wrap in span for padding/indent (class: gh-callout-indent)
+  rendered = '<span class="gh-callout-indent">' .. rendered .. '</span>'
   -- Re-escape any bare & that aren't part of entities
   return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
 end
 
 local function build_table_html(callout_type, title, processed_sections)
   local def = callout_defs[callout_type] or {}
-  local color = def.color or "#1e90ff"
   local symbol = def.symbol or ""
 
-  local cfg = callout_table_cfg or {}
-  local wrapper_style = cfg.wrapper_style or "max-width:60ch!important;margin:auto;margin-bottom:1em!important;"
-
-  -- Shadow and border from settings templates, formatted with color
-  local shadow_tpl = cfg.shadow or 'box-shadow:-4px 4px 0 %s66!important;'
-  local border_tpl = cfg.border or 'border:4px solid %s!important;'
-  local shadow_style = shadow_tpl:format(color)
-  local border_style = border_tpl:format(color)
-
-  -- Error override replaces shadow/border
-  local err = def.error_override
-  if err then
-    shadow_style = err.shadow or shadow_style
-    border_style = err.border or border_style
-  end
-
-  local table_style = (cfg.table_style or '') .. shadow_style .. border_style
-
-  local heading_style = (def.heading_style or
-    "color:%s!important;font-weight:bold!important;padding:0.5em 1em!important;" ..
-    "border-top:0!important;border-right:0!important;border-left:0!important;" ..
-    "border-bottom:2px solid %s!important;"):format(color, color)
-
-  local body_style = def.body_style or
-    "padding:0.5em 1em!important;border-top:0!important;border-right:0!important;" ..
-    "border-left:0!important;border-bottom:0!important;"
-
-  local border_between = (def.border_between or
-    "border-top:1px solid %s!important;"):format(color)
-
-  local html = '<div style="' .. wrapper_style .. '">\n'
-  html = html .. '<table style="' .. table_style .. '">\n'
+  local html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
+  html = html .. '<table class="gh-callout-table">\n'
 
   -- Title row
   local title_display = symbol ~= "" and (symbol .. " " .. title) or title
-  html = html .. '<tr><td colspan="2" style="' .. heading_style .. '">' .. escape_html(title_display) .. '</td></tr>\n'
+  html = html .. '<tr><td colspan="2" class="gh-callout-header">' .. escape_html(title_display) .. '</td></tr>\n'
 
   -- Body rows
   for idx, section in ipairs(processed_sections) do
     local body_html = process_section(section, callout_type == "error")
-    local cell_style = body_style
+    local cell_class = 'gh-callout-body'
     if idx > 1 then
-      cell_style = cell_style .. border_between
+      cell_class = cell_class .. ' gh-callout-separator'
     end
-    html = html .. '<tr><td colspan="2" style="' .. cell_style .. '">' .. body_html .. '</td></tr>\n'
+    html = html .. '<tr><td colspan="2" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
   end
 
   return html .. '</tbody></table></div>'
@@ -536,7 +503,8 @@ return {
       local parts = {}
       if rr_font.family then table.insert(parts, 'font-family:' .. rr_font.family) end
       if rr_font.size then table.insert(parts, 'font-size:' .. rr_font.size) end
-      table.insert(rules, '.gh-content{' .. table.concat(parts, ';') .. '}')
+      local wrapper_style = settings.doc_wrapper_style or 'max-width:80ch;margin-left:auto;margin-right:auto;'
+      table.insert(rules, '.gh-content{' .. table.concat(parts, ';') .. ';' .. wrapper_style .. '}')
     end
 
     -- Headings — use em so Ghost reading prefs cascade
@@ -575,6 +543,48 @@ return {
       table.insert(rules, '.gh-content hr{' .. rr_hr.inline_style .. '}')
     end
 
+    -- Callout CSS classes
+    local cfg = callout_table_cfg or {}
+    local shadow_tpl = cfg.shadow or 'box-shadow:-4px 4px 0 %s66;'
+    local border_tpl = cfg.border or 'border:4px solid %s;'
+    local table_base = (cfg.table_style or '') .. ';'
+
+    -- Per-type color custom property + shadow/border
+    for ctype, def in pairs(callout_defs) do
+      local color = def.color
+      local shadow = shadow_tpl:format(color)
+      local border = border_tpl:format(color)
+      local err = def.error_override
+      if err then
+        shadow = err.shadow or shadow
+        border = err.border or border
+      end
+      table.insert(rules,
+        '.gh-callout--' .. ctype .. '{--gh-color:' .. color .. ';' .. shadow .. border .. '}')
+    end
+
+    -- Base callout wrapper
+    local wrapper_css = cfg.wrapper_style or 'max-width:60ch;margin:auto;margin-bottom:1em;'
+    table.insert(rules, '.gh-callout{' .. wrapper_css .. '}')
+
+    -- Table base styles (border-collapse, background, etc.)
+    table.insert(rules, '.gh-callout-table{' .. table_base .. '}')
+
+    -- Header cell — uses var(--gh-color) for background/border
+    local header_style = 'background:var(--gh-color);color:#1a1a2e;font-weight:bold;padding:0.5em 1em 0.5em 0.3em;border:none;'
+    table.insert(rules, '.gh-callout-header{' .. header_style .. '}')
+
+    -- Body cell
+    local body_style = 'padding:0.5em 1em;border:none;'
+    table.insert(rules, '.gh-callout-body{' .. body_style .. '}')
+
+    -- Separator between sections
+    local sep_style = 'border-top:1px solid var(--gh-color);'
+    table.insert(rules, '.gh-callout-separator{' .. sep_style .. '}')
+
+    -- Indent span
+    table.insert(rules, '.gh-callout-indent{display:block;padding-left:1em;text-indent:-1em;}')
+
     local css = table.concat(rules, "")
     local style_block = pandoc.RawBlock("html", '<style>' .. css .. '</style>')
 
@@ -585,10 +595,9 @@ return {
       table.insert(head_blocks, 1, pandoc.RawBlock("html", '<link href="' .. import_url .. '" rel="stylesheet">'))
     end
 
-    -- Wrapper div
-    local wrapper_style = settings.doc_wrapper_style or "max-width:80ch;margin-left:auto;margin-right:auto;"
+    -- Wrapper div (no inline style — uses .gh-content class)
     local final = pandoc.List:new(head_blocks)
-    final:insert(pandoc.RawBlock("html", '<div class="gh-content" style="' .. wrapper_style .. '">'))
+    final:insert(pandoc.RawBlock("html", '<div class="gh-content">'))
     for _, blk in ipairs(filtered) do
       final:insert(blk)
     end
