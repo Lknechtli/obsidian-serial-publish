@@ -183,11 +183,11 @@ local function build_table_html(callout_type, title, processed_sections)
   local symbol = def.symbol or ""
 
   local html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
-  html = html .. '<table class="gh-callout-table">\n'
+  html = html .. '<table class="gh-callout-table"><tbody>\n'
 
-  -- Title row
+  -- Title row with traffic lights
   local title_display = symbol ~= "" and (symbol .. " " .. title) or title
-  html = html .. '<tr><td colspan="2" class="gh-callout-header">' .. escape_html(title_display) .. '</td></tr>\n'
+  html = html .. '<tr><td colspan="2" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
 
   -- Body rows
   for idx, section in ipairs(processed_sections) do
