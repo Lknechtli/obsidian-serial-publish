@@ -72,6 +72,15 @@ def hello():
 
 ---
 
+## Escaped Brackets in Code Blocks
+
+Backslash-escaped brackets inside fenced code blocks remain as literal text.
+
+```
+\[test\]
+```
+---
+
 ## Unordered Lists
 
 - Apples

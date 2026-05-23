@@ -1,0 +1,182 @@
+<div class="rr-theme">
+<h1 id="royal-road-scrubber-examples">Royal Road Scrubber —
+Examples</h1>
+<p>Demonstrates every conversion the <code>rr-convert.lua</code> Pandoc
+Lua filter performs on Obsidian markdown.</p>
+<hr>
+<h2 id="headings-h1h6-styled-divs">Headings (h1–h6 → styled divs)</h2>
+<p>Royal Road mangles <code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code>
+into <code>&lt;p&gt;</code> tags. The converter converts them to
+<code>&lt;div&gt;</code> elements with inline styles.</p>
+<h1 id="level-1-heading">Level 1 Heading</h1>
+<h2 id="level-2-heading">Level 2 Heading</h2>
+<h3 id="level-3-heading">Level 3 Heading</h3>
+<h4 id="level-4-heading">Level 4 Heading</h4>
+<h5 id="level-5-heading">Level 5 Heading</h5>
+<h6 id="level-6-heading">Level 6 Heading</h6>
+<hr>
+<h2 id="paragraphs">Paragraphs</h2>
+<p>This is the first paragraph.</p>
+<p>This is the second paragraph.</p>
+<hr>
+<h2 id="bold-italic-and-strikethrough">Bold, Italic, and
+Strikethrough</h2>
+<p>This is <strong>bold</strong>, <em>italic</em>, and
+<del>strikethrough</del> text.</p>
+<hr>
+<h2 id="links-preserved">Links (preserved)</h2>
+<p>Regular URLs pass through as <code>&lt;a&gt;</code> tags — Royal Road
+supports them natively.</p>
+<p>Read more at <a href="https://example.com">Example Site</a> for
+details.</p>
+<hr>
+<h2 id="wiki-links-removed-entirely">Wiki Links (removed entirely)</h2>
+<p>Obsidian <code>[[wiki links]]</code> have no Royal Road equivalent
+and are deleted.</p>
+<p>See Character Sheet and World Map for reference.</p>
+<hr>
+<h2 id="literal-brackets">Literal Brackets</h2>
+<p>Use backslash-escaped brackets to output literal
+<code>[[Text]]</code> in the final HTML.</p>
+<p>The spell is [[Fireball]] and the place is [[Castle Ruins]].</p>
+<p>Escaped brackets inside quoted text also resolve correctly: “I was an
+[Overlord].”</p>
+<hr>
+<h2 id="inline-code">Inline Code</h2>
+<p>Use the <code>pandoc</code> command with <code>--lua-filter</code>
+flag.</p>
+<hr>
+<h2 id="fenced-code-blocks">Fenced Code Blocks</h2>
+<div class="sourceCode"><code>def hello():
+    print("Hello, Royal Road!")</code></div>
+<hr>
+<h2 id="escaped-brackets-in-code-blocks">Escaped Brackets in Code
+Blocks</h2>
+<p>Backslash-escaped brackets inside fenced code blocks remain as
+literal text.</p>
+<div class="sourceCode"><code>\[test\]</code></div>
+<hr>
+<h2 id="unordered-lists">Unordered Lists</h2>
+<ul>
+<li>Apples</li>
+<li>Bananas</li>
+<li>Cherries</li>
+</ul>
+<hr>
+<h2 id="ordered-lists">Ordered Lists</h2>
+<ol type="1">
+<li>First step</li>
+<li>Second step</li>
+<li>Third step</li>
+</ol>
+<hr>
+<h2 id="horizontal-rules">Horizontal Rules</h2>
+<hr>
+<h2 id="images">Images</h2>
+<p><img src="https://www.royalroad.com/dist/img/nocover-new-min.png"
+alt="Dragon illustration" /></p>
+<hr>
+<h2 id="callouts">Callouts</h2>
+<p>Obsidian callout syntax becomes styled <code>&lt;table&gt;</code>
+elements. Royal Road strips <code>&lt;pre&gt;</code> tags, so tables are
+used instead.</p>
+<h3 id="info-callout">Info Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
+<tr><td colspan="2" style="background:#1e90ff!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">ℹ  About This Chapter</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">This chapter introduces the main characters. Pay attention to the timeline. [Time Lock: 0:06:00]</span></td></tr>
+</tbody></table></div>
+<h3 id="tip-callout">Tip Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #4caf5066!important;border:4px solid #4caf50!important;">
+<tr><td colspan="2" style="background:#4caf50!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">▶  Writing Advice</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">Show, don’t tell. Let actions reveal character.</span></td></tr>
+</tbody></table></div>
+<h3 id="warning-callout">Warning Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #ff572266!important;border:4px solid #ff5722!important;">
+<tr><td colspan="2" style="background:#ff5722!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">⚠  Spoiler Ahead</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">The following section reveals the antagonist’s identity.</span></td></tr>
+</tbody></table></div>
+<h3 id="error-callout">Error Callout</h3>
+<p>The error callout has special handling: multi-layer chromatic
+aberration box-shadow and bold body text.</p>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -2px -1px 0 #ff0000!important, 2px 1px 0 #00ffff!important, -3px 2px 0 rgba(255,0,0,0.4)!important, 3px -2px 0 rgba(0,255,255,0.4)!important, -4px 4px 0 #f4433666!important;border: 4px solid #f44336!important;">
+<tr><td colspan="2" style="background:#f44336!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">✖  Critical Plot Hole</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;"><b>The timeline contradicts itself in chapter three.</b></span></td></tr>
+</tbody></table></div>
+<h3 id="note-callout">Note Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #8bc34a66!important;border:4px solid #8bc34a!important;">
+<tr><td colspan="2" style="background:#8bc34a!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">✎  Author’s Note</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">Thanks for reading! Leave a review if you enjoyed.</span></td></tr>
+</tbody></table></div>
+<h3 id="task-callout">Task Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #9c27b066!important;border:4px solid #9c27b0!important;">
+<tr><td colspan="2" style="background:#9c27b0!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">☑  Beta Reader Checklist</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">Check for continuity errors in the magic system.</span></td></tr>
+</tbody></table></div>
+<h3 id="quote-callout">Quote Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #607d8b66!important;border:4px solid #607d8b!important;">
+<tr><td colspan="2" style="background:#607d8b!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">“  Epigraph</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;"></span></td></tr>
+</tbody></table></div>
+<h3 id="example-callout">Example Callout</h3>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #ba68c866!important;border:4px solid #ba68c8!important;">
+<tr><td colspan="2" style="background:#ba68c8!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">☷ Sample Dialogue</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">shouted the wizard.</span></td></tr>
+</tbody></table></div>
+<h3 id="multi-section-callout">Multi-Section Callout</h3>
+<p>A <code>---</code> separator inside a callout splits the body into
+separate table rows, each with its own cell.</p>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
+<tr><td colspan="2" style="background:#1e90ff!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">ℹ  Spell Reference</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">— 3rd-level evocation Range: 150 feet Casting Time: 1 action</span></td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;border-bottom:1px solid #1e90ff!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame.</span></td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;border-bottom:1px solid #1e90ff!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">Dexterity save or take 8d6 fire damage. Half damage on a success.</span></td></tr>
+</tbody></table></div>
+<hr>
+<h2 id="unknown-callout-types">Unknown Callout Types</h2>
+<p>Unknown types default to <code>info</code> styling. Numeric suffixes
+are stripped (e.g., <code>tip-1</code> → <code>tip</code>).</p>
+<blockquote>
+<p>[!custom] Custom Label This falls back to info styling.</p>
+</blockquote>
+<hr>
+<h2 id="full-chapter-example">Full Chapter Example</h2>
+<h1 id="chapter-1-the-beginning">Chapter 1: The Beginning</h1>
+<h2 id="the-awakening">The Awakening</h2>
+<p>Kael opened his eyes to a world he didn’t recognize. The sky was
+<strong>purple</strong>, and the trees were <em>burning</em>.</p>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
+<tr><td colspan="2" style="background:#1e90ff!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">ℹ  Author’s Note</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">This chapter was inspired by a dream.</span></td></tr>
+</tbody></table></div>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #ff572266!important;border:4px solid #ff5722!important;">
+<tr><td colspan="2" style="background:#ff5722!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">⚠  Content Warning</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">This chapter contains descriptions of violence.</span></td></tr>
+</tbody></table></div>
+<h3 id="the-journey-begins">The Journey Begins</h3>
+<p>He picked up his sword and walked toward the Castle Ruins . The path
+was marked by Stone Markers that glowed faintly.</p>
+<ol type="1">
+<li>Find the sword</li>
+<li>Cross the bridge</li>
+<li>Enter the castle</li>
+</ol>
+<p>For more lore, see <a href="https://example.com/wiki">the
+wiki</a>.</p>
+<hr>
+<div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
+<table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -2px -1px 0 #ff0000!important, 2px 1px 0 #00ffff!important, -3px 2px 0 rgba(255,0,0,0.4)!important, 3px -2px 0 rgba(0,255,255,0.4)!important, -4px 4px 0 #f4433666!important;border: 4px solid #f44336!important;">
+<tr><td colspan="2" style="background:#f44336!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">✖  Plot Note</td></tr>
+<tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;"><b>Remember: Kael doesn’t know about the prophecy yet.</b></span></td></tr>
+</tbody></table></div>
+</div>

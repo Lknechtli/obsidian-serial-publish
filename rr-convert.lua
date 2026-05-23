@@ -626,6 +626,7 @@ return {
   -- Inline style only added when user overrides rr_defaults.code.
   Code = function(el)
     local txt = el.text or (el.c and el.c[2]) or ""
+    txt = txt:gsub("\1LB", "\\["):gsub("\1RB", "\\]")
     local attr = ' class="rr-code"'
     if code_override and code_override.inline_style then
       attr = attr .. ' style="' .. code_override.inline_style .. '"'
@@ -637,7 +638,8 @@ return {
   -- Inline style only added when user overrides rr_defaults.fenced.
   CodeBlock = function(cb)
     local lang = cb.attributes.language or ""
-    local code = escape_html(cb.text)
+    local code = cb.text:gsub("\1LB", "\\["):gsub("\1RB", "\\]")
+    code = escape_html(code)
     local cls = 'rr-code-block' .. (#lang > 0 and (' sourceCode ' .. lang) or '')
     local attr = ' class="' .. cls .. '"'
     if fenced_override and fenced_override.inline_style then

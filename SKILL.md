@@ -8,21 +8,21 @@ user_invocable: true
 
 **Recommended approach:** Use the bundled `rr-convert.sh` script for deterministic, testable conversion:
 
-    ./rr-convert.sh input.md -o output.html
+    ./rr-convert.sh input.md -o output.html          # Royal Road (default)
+    ./rr-convert.sh input.md -o output.html --mode ghost   # Ghost CMS
 
-This handles `\[\[...\]\]` escape preprocessing and runs the `rr-convert.lua` Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
+This handles `\[\[...\]\]` escape preprocessing and runs the appropriate Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
+
+### Output Modes
+
+| Mode | Flag | Headings | Inline styles | Use case |
+|---|---|---|---|---|
+| Royal Road (default) | `--mode rr` | `<div>` with inline CSS | Yes — required for RR parser | Publishing on Royal Road |
+| Ghost CMS | `--mode ghost` | Semantic `<h1>`–`<h6>` | No — theme CSS handles styling | Ghost CMS posts |
+
+**Ghost mode** produces clean semantic HTML wrapped in `<div class="rr-theme">`. The Ghost theme's CSS custom properties (`--read-font-size`, `--read-line-height`, etc.) control all typography. Callout tables retain their inline styles since Ghost has no native callout support.
 
 **Note:** The SKILL.md below documents the conversion rules that the Lua filter implements. For new conversions, always prefer running the lua filter over instructing an LLM to manually apply these rules.
-
-Royal Road has a restrictive HTML/CSS parser ("the wizard") that strips or mangles certain elements during publishing. When given an Obsidian markdown file, produce HTML output that passes Royal Road's parser intact by applying these rules in order.
-
-## Output File
-
-When given a markdown file, write the converted HTML to a new `.html` file:
-- Take the input path (e.g., `Chapter 1/Draft 2.md`)
-- Replace extension to produce `Chapter 1/Draft 2.html`
-- Do **not** overwrite or modify the original markdown file
-- Output only HTML — no preamble, explanation text, or code fences around the output
 
 ## Conversion Order (apply sequentially)
 
