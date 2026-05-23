@@ -1,13 +1,18 @@
-<div class="rr-theme">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>.gh-content{font-family:Open Sans, Arial, sans-serif;font-size:14px}.gh-content h1{font-size:2.0em;font-weight:bold;margin:1.5em 0 0.8em;}.gh-content h2{font-size:1.6em;font-weight:bold;margin:1.3em 0 0.7em;}.gh-content h3{font-size:1.3em;font-weight:bold;margin:1.1em 0 0.5em;}.gh-content h4{font-size:1.1em;font-weight:bold;margin:0.9em 0 0.4em;}.gh-content h5{font-size:1.0em;font-weight:bold;margin:0.7em 0 0.3em;}.gh-content h6{font-size:0.9em;font-weight:bold;text-transform:uppercase;margin:0.6em 0 0.2em;}.gh-code{background-color:#6d737b;color:#dfdee4;font-family:consolas,monospace;font-size:14px;line-height:20px;padding:1.6px 3.2px;border-radius:3px;display:inline;overflow-wrap:break-word;display:inline!important;}.gh-code-block{background-color:#6d737b;color:#dfdee4;font-family:consolas,monospace;font-size:14px;line-height:20px;padding:1.6px 3.2px;border-radius:3px;display:block;overflow-wrap:break-word;white-space:pre;}.gh-content hr{border-top:1px solid #6d737b;border-bottom:none;border-left:none;border-right:none;}</style>
+<div class="gh-content" style="max-width:80ch!important;margin-left:auto!important;margin-right:auto!important;">
 <h1 id="royal-road-scrubber-examples">Royal Road Scrubber —
 Examples</h1>
-<p>Demonstrates every conversion the <code>rr-convert.lua</code> Pandoc
-Lua filter performs on Obsidian markdown.</p>
+<p>Demonstrates every conversion the
+<code class="gh-code">rr-convert.lua</code> Pandoc Lua filter performs
+on Obsidian markdown.</p>
 <hr>
 <h2 id="headings-h1h6-styled-divs">Headings (h1–h6 → styled divs)</h2>
-<p>Royal Road mangles <code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code>
-into <code>&lt;p&gt;</code> tags. The converter converts them to
-<code>&lt;div&gt;</code> elements with inline styles.</p>
+<p>Royal Road mangles
+<code class="gh-code">&lt;h1&gt;</code>–<code class="gh-code">&lt;h6&gt;</code>
+into <code class="gh-code">&lt;p&gt;</code> tags. The converter converts
+them to <code class="gh-code">&lt;div&gt;</code> elements with inline
+styles.</p>
 <h1 id="level-1-heading">Level 1 Heading</h1>
 <h2 id="level-2-heading">Level 2 Heading</h2>
 <h3 id="level-3-heading">Level 3 Heading</h3>
@@ -25,36 +30,36 @@ Strikethrough</h2>
 <del>strikethrough</del> text.</p>
 <hr>
 <h2 id="links-preserved">Links (preserved)</h2>
-<p>Regular URLs pass through as <code>&lt;a&gt;</code> tags — Royal Road
-supports them natively.</p>
+<p>Regular URLs pass through as <code class="gh-code">&lt;a&gt;</code>
+tags — Royal Road supports them natively.</p>
 <p>Read more at <a href="https://example.com">Example Site</a> for
 details.</p>
 <hr>
 <h2 id="wiki-links-removed-entirely">Wiki Links (removed entirely)</h2>
-<p>Obsidian <code>[[wiki links]]</code> have no Royal Road equivalent
-and are deleted.</p>
+<p>Obsidian <code class="gh-code">[[wiki links]]</code> have no Royal
+Road equivalent and are deleted.</p>
 <p>See Character Sheet and World Map for reference.</p>
 <hr>
 <h2 id="literal-brackets">Literal Brackets</h2>
 <p>Use backslash-escaped brackets to output literal
-<code>[[Text]]</code> in the final HTML.</p>
+<code class="gh-code">[[Text]]</code> in the final HTML.</p>
 <p>The spell is [[Fireball]] and the place is [[Castle Ruins]].</p>
 <p>Escaped brackets inside quoted text also resolve correctly: “I was an
 [Overlord].”</p>
 <hr>
 <h2 id="inline-code">Inline Code</h2>
-<p>Use the <code>pandoc</code> command with <code>--lua-filter</code>
-flag.</p>
+<p>Use the <code class="gh-code">pandoc</code> command with
+<code class="gh-code">--lua-filter</code> flag.</p>
 <hr>
 <h2 id="fenced-code-blocks">Fenced Code Blocks</h2>
-<div class="sourceCode"><code>def hello():
+<div class="gh-code-block"><code>def hello():
     print("Hello, Royal Road!")</code></div>
 <hr>
 <h2 id="escaped-brackets-in-code-blocks">Escaped Brackets in Code
 Blocks</h2>
 <p>Backslash-escaped brackets inside fenced code blocks remain as
 literal text.</p>
-<div class="sourceCode"><code>\[test\]</code></div>
+<div class="gh-code-block"><code>\[test\]</code></div>
 <hr>
 <h2 id="unordered-lists">Unordered Lists</h2>
 <ul>
@@ -77,9 +82,10 @@ literal text.</p>
 alt="Dragon illustration" /></p>
 <hr>
 <h2 id="callouts">Callouts</h2>
-<p>Obsidian callout syntax becomes styled <code>&lt;table&gt;</code>
-elements. Royal Road strips <code>&lt;pre&gt;</code> tags, so tables are
-used instead.</p>
+<p>Obsidian callout syntax becomes styled
+<code class="gh-code">&lt;table&gt;</code> elements. Royal Road strips
+<code class="gh-code">&lt;pre&gt;</code> tags, so tables are used
+instead.</p>
 <h3 id="info-callout">Info Callout</h3>
 <div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
 <table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
@@ -131,8 +137,8 @@ aberration box-shadow and bold body text.</p>
 <tr><td colspan="2" style="padding:0.5em 1em!important;border:none!important;"><span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;">shouted the wizard.</span></td></tr>
 </tbody></table></div>
 <h3 id="multi-section-callout">Multi-Section Callout</h3>
-<p>A <code>---</code> separator inside a callout splits the body into
-separate table rows, each with its own cell.</p>
+<p>A <code class="gh-code">---</code> separator inside a callout splits
+the body into separate table rows, each with its own cell.</p>
 <div style="max-width:60ch!important;margin:auto;margin-bottom:1em!important;">
 <table style="border-collapse:separate !important;border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;box-shadow: -4px 4px 0 #1e90ff66!important;border:4px solid #1e90ff!important;">
 <tr><td colspan="2" style="background:#1e90ff!important;color:#1a1a2e!important;font-weight:bold!important;padding:0.5em 1em 0.5em 0.3em!important;border:none!important;">ℹ  Spell Reference</td></tr>
@@ -142,8 +148,9 @@ separate table rows, each with its own cell.</p>
 </tbody></table></div>
 <hr>
 <h2 id="unknown-callout-types">Unknown Callout Types</h2>
-<p>Unknown types default to <code>info</code> styling. Numeric suffixes
-are stripped (e.g., <code>tip-1</code> → <code>tip</code>).</p>
+<p>Unknown types default to <code class="gh-code">info</code> styling.
+Numeric suffixes are stripped (e.g., <code class="gh-code">tip-1</code>
+→ <code class="gh-code">tip</code>).</p>
 <blockquote>
 <p>[!custom] Custom Label This falls back to info styling.</p>
 </blockquote>

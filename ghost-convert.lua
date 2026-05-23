@@ -15,12 +15,21 @@ if settings_path then
   end
 end
 
+local rr_defaults = settings.rr_defaults or {}
+
 local heading_styles     = settings.headings     or {}
 local callout_defs       = settings.callouts     or {}
 local callout_table_cfg  = settings.callout_table or {}
+local code_override      = settings.code         or nil
+local font_override      = settings.font         or nil
+local fenced_override    = settings.fenced       or nil
+
+local code_cfg   = code_override or rr_defaults.code or {}
+local font_cfg   = font_override or rr_defaults.font or {}
+local fenced_cfg = fenced_override or rr_defaults.fenced or {}
 
 -- Derive color/symbol maps for validation
-local callout_colors = {}
+local callout_colors  = {}
 local callout_symbols = {}
 for k, v in pairs(callout_defs) do
   callout_colors[k]  = v.color
@@ -460,7 +469,7 @@ return {
   Code = function(el)
     local txt = el.text or (el.c and el.c[2]) or ""
     txt = txt:gsub("\1LB", "\\["):gsub("\1RB", "\\]")
-    return pandoc.RawInline("html", '<code>' .. escape_html(txt) .. '</code>')
+    return pandoc.RawInline("html", '<code class="gh-code">' .. escape_html(txt) .. '</code>')
   end,
 
   -- Fenced code blocks — clean (Ghost styles via CSS)
@@ -468,7 +477,7 @@ return {
     local lang = cb.attributes.language or ""
     local code = cb.text:gsub("\1LB", "\\["):gsub("\1RB", "\\]")
     code = escape_html(code)
-    local cls = 'sourceCode' .. (#lang > 0 and (' ' .. lang) or '')
+    local cls = 'gh-code-block' .. (#lang > 0 and (' sourceCode ' .. lang) or '')
     return pandoc.RawBlock("html", '<div class="' .. cls .. '"><code>' .. code .. '</code></div>')
   end,
 
@@ -518,9 +527,68 @@ return {
     end
     doc.blocks = filtered
 
-    -- Wrap in .rr-theme div (Ghost theme applies CSS custom properties here)
-    local final = pandoc.List:new()
-    final:insert(pandoc.RawBlock("html", '<div class="rr-theme">'))
+    -- Build <style> block from rr_defaults (Ghost HTML card is isolated from theme CSS)
+    local rules = {}
+
+    -- Font
+    local rr_font = font_cfg
+    if rr_font and (rr_font.family or rr_font.size) then
+      local parts = {}
+      if rr_font.family then table.insert(parts, 'font-family:' .. rr_font.family) end
+      if rr_font.size then table.insert(parts, 'font-size:' .. rr_font.size) end
+      table.insert(rules, '.gh-content{' .. table.concat(parts, ';') .. '}')
+    end
+
+    -- Headings — use em so Ghost reading prefs cascade
+    local heading_rules = {}
+    for level = 1, 6 do
+      local style = heading_styles[level]
+      if style then
+        table.insert(heading_rules, '.gh-content h' .. level .. '{' .. style .. '}')
+      end
+    end
+    if #heading_rules > 0 then
+      table.insert(rules, table.concat(heading_rules, ''))
+    end
+
+    -- Inline code: merge rr_defaults with user override
+    local code_style = (rr_defaults.code or {}).inline_style or ""
+    if code_override and code_override.inline_style then
+      code_style = code_style .. code_override.inline_style
+    end
+    if #code_style > 0 then
+      table.insert(rules, '.gh-code{' .. code_style .. '}')
+    end
+
+    -- Fenced code blocks: merge rr_defaults with user override
+    local fenced_style = (rr_defaults.fenced or {}).inline_style or ""
+    if fenced_override and fenced_override.inline_style then
+      fenced_style = fenced_style .. fenced_override.inline_style
+    end
+    if #fenced_style > 0 then
+      table.insert(rules, '.gh-code-block{' .. fenced_style .. '}')
+    end
+
+    -- Horizontal rule
+    local rr_hr = (rr_defaults.hr or {})
+    if rr_hr and rr_hr.inline_style then
+      table.insert(rules, '.gh-content hr{' .. rr_hr.inline_style .. '}')
+    end
+
+    local css = table.concat(rules, "")
+    local style_block = pandoc.RawBlock("html", '<style>' .. css .. '</style>')
+
+    -- Inject Google Fonts link if configured
+    local head_blocks = pandoc.List:new{style_block}
+    local import_url = font_cfg.import_url
+    if import_url and #import_url > 0 then
+      table.insert(head_blocks, 1, pandoc.RawBlock("html", '<link href="' .. import_url .. '" rel="stylesheet">'))
+    end
+
+    -- Wrapper div
+    local wrapper_style = settings.doc_wrapper_style or "max-width:80ch;margin-left:auto;margin-right:auto;"
+    local final = pandoc.List:new(head_blocks)
+    final:insert(pandoc.RawBlock("html", '<div class="gh-content" style="' .. wrapper_style .. '">'))
     for _, blk in ipairs(filtered) do
       final:insert(blk)
     end
