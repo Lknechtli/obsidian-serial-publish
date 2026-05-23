@@ -189,14 +189,23 @@ local function build_table_html(callout_type, title, processed_sections)
   local title_display = symbol ~= "" and (symbol .. " " .. title) or title
   html = html .. '<tr><td colspan="2" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
 
-  -- Body rows
+  -- Body rows (skip empty sections)
+  local num_body_sections = 0
+  for _, s in ipairs(processed_sections) do
+    if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
+  end
+  local rendered_count = 0
   for idx, section in ipairs(processed_sections) do
-    local body_html = process_section(section, callout_type == "error")
-    local cell_class = 'gh-callout-body'
-    if idx > 1 then
-      cell_class = cell_class .. ' gh-callout-separator'
+    local trimmed = section:gsub("^%s*$", "")
+    if #trimmed > 0 then
+      rendered_count = rendered_count + 1
+      local body_html = process_section(section, callout_type == "error")
+      local cell_class = 'gh-callout-body'
+      if idx > 1 then
+        cell_class = cell_class .. ' gh-callout-separator'
+      end
+      html = html .. '<tr><td colspan="2" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
     end
-    html = html .. '<tr><td colspan="2" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
   end
 
   return html .. '</tbody></table></div>'
