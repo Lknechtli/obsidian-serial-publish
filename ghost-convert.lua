@@ -60,8 +60,10 @@ end
 local inline_to_html
 local function collect_inner(content)
   local parts = {}
+  local n = 0
   for _, el in ipairs(content or {}) do
-    table.insert(parts, inline_to_html(el))
+    n = n + 1
+    parts[n] = inline_to_html(el)
   end
   return table.concat(parts)
 end
@@ -73,8 +75,16 @@ inline_to_html = function(el)
   if el.t == "LineBreak" then return "<br/>" end
   if el.t == "Check" then return el.checked and "☑" or "☐" end
   if el.t == "Emph" then return "<i>" .. collect_inner(el.content) .. "</i>" end
-  if el.t == "StrongEmph" then return "<b>" .. collect_inner(el.content) .. "</b>" end
+  if el.t == "Strong" then return "<b>" .. collect_inner(el.content) .. "</b>" end
   if el.t == "Strikeout" then return "<del>" .. collect_inner(el.content) .. "</del>" end
+  if el.t == "Quoted" then
+    local quote = '"'
+    local inner = ""
+    if type(el.content) == "table" then
+      inner = collect_inner(el.content)
+    end
+    return quote .. inner .. quote
+  end
   if el.t == "Code" then
     local txt = (el.text or ""):gsub("\1LB", "\\["):gsub("\1RB", "\\]")
     return "<code>" .. escape_html(txt) .. "</code>"
@@ -141,7 +151,7 @@ local function build_body_sections(bq_content)
             elseif elem.t == "Space" then
               table.insert(body_parts, " ")
             elseif elem.t == "SoftBreak" then
-              table.insert(body_parts, "\n")
+              table.insert(body_parts, "\n\n")
             elseif elem.t == "Str" and elem.text then
               table.insert(body_parts, elem.text)
             else
@@ -193,36 +203,42 @@ local function process_section(raw_html, is_error)
   if is_error then
     clean_body = '<b>' .. clean_body .. '</b>'
   end
-  local rendered = clean_body:gsub("\n", "<br />")
 
   -- Normalize pandoc's checkbox symbols (☒ → ☑ for checked items)
-  rendered = rendered:gsub("☒", "☑")
+  clean_body = clean_body:gsub("☒", "☑")
   -- Convert raw markdown task markers in callout bodies
-  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
+  clean_body = clean_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
 
-  -- Wrap task list lines (starting with checkbox) in reset span
-  local temp = rendered:gsub("<br />", "\n")
-  local lines = {}
-  for line in temp:gmatch("[^\n]+") do table.insert(lines, line) end
-  local parts = {}
-  for i, line in ipairs(lines) do
-    if line:find("^[☐☑]") then
-      table.insert(parts, '<span class="gh-callout-indent--reset">' .. line .. '</span>')
-    else
-      -- Non-task line: add br before if previous line was a task line
-      if i > 1 and lines[i-1]:find("^[☐☑]") then
-        table.insert(parts, "<br />" .. line)
-      elseif i > 1 then
-        table.insert(parts, "<br />" .. line)
-      else
-        table.insert(parts, line)
-      end
-    end
+  -- Split on \n\n to preserve paragraph boundaries
+  local paragraphs = {}
+  local delimited = clean_body:gsub("\n\n", "\x01")
+  for para in delimited:gmatch("[^\1]+") do
+    table.insert(paragraphs, para)
   end
-  rendered = table.concat(parts, "")
 
-  -- Wrap in span for padding/indent (class: gh-callout-indent)
-  rendered = '<span class="gh-callout-indent">' .. rendered .. '</span>'
+  local parts = {}
+  for _, para in ipairs(paragraphs) do
+    -- Trim whitespace from each paragraph
+    para = para:gsub("^%s+", ""):gsub("%s+$", "")
+    if #para == 0 then goto continue end
+
+    -- Convert single newlines within a paragraph to <br /> (line wraps)
+    local content = para:gsub("\n", "<br />")
+
+    if content:find("^[☐☑]") then
+      -- Task list line: block reset span (no hanging indent)
+      table.insert(parts, '<span class="gh-callout-indent--reset">' .. content .. '</span>')
+    else
+      -- Paragraph: <p> with hanging indent on first line
+      table.insert(parts, '<p class="gh-callout-indent--para">' .. content .. '</p>')
+    end
+    ::continue::
+  end
+
+  local rendered = table.concat(parts, "")
+
+  -- Wrap in container div for padding (class: gh-callout-indent)
+  rendered = '<div class="gh-callout-indent">' .. rendered .. '</div>'
   -- Re-escape any bare & that aren't part of entities
   return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
 end
