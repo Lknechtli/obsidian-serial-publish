@@ -67,10 +67,11 @@ local function collect_inner(content)
 end
 
 inline_to_html = function(el)
-  if el.t == "Str" and el.text then return el.text end
+  if el.t == "Str" and el.text then return el.text:gsub("☒", "☑") end
   if el.t == "Space" then return " " end
   if el.t == "SoftBreak" then return " " end
   if el.t == "LineBreak" then return "<br/>" end
+  if el.t == "Check" then return el.checked and "☑" or "☐" end
   if el.t == "Emph" then return "<i>" .. collect_inner(el.content) .. "</i>" end
   if el.t == "StrongEmph" then return "<b>" .. collect_inner(el.content) .. "</b>" end
   if el.t == "Strikeout" then return "<del>" .. collect_inner(el.content) .. "</del>" end
@@ -137,10 +138,10 @@ local function build_body_sections(bq_content)
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n")
-            elseif elem.t == "Space" or elem.t == "SoftBreak" then
-              local prev_is_str = i > 1 and (unwrapped.content[i-1].t == "Str")
-              local next_is_str = i < #unwrapped.content and unwrapped.content[i+1] and unwrapped.content[i+1].t == "Str"
-              if prev_is_str or next_is_str then table.insert(body_parts, " ") end
+            elseif elem.t == "Space" then
+              table.insert(body_parts, " ")
+            elseif elem.t == "SoftBreak" then
+              table.insert(body_parts, "\n")
             elseif elem.t == "Str" and elem.text then
               table.insert(body_parts, elem.text)
             else
@@ -158,6 +159,28 @@ local function build_body_sections(bq_content)
         local html = inline_to_html(inline)
         if #html > 0 then current_section = current_section .. html end
       end
+    elseif (cblk.t == "BulletList" or cblk.t == "OrderedList") and cblk.content then
+      -- Convert list items to HTML for callout body rendering
+      local list_tag = cblk.t == "BulletList" and "ul" or "ol"
+      current_section = current_section .. "\n\n<" .. list_tag .. ">"
+      for _, item in ipairs(cblk.content) do
+        current_section = current_section .. "<li>"
+        if type(item) == "table" then
+          for _, elem in ipairs(item) do
+            if elem.content then
+              for _, inner in ipairs(elem.content) do
+                local html = inline_to_html(inner)
+                if #html > 0 then current_section = current_section .. html end
+              end
+            else
+              local html = inline_to_html(elem)
+              if #html > 0 then current_section = current_section .. html end
+            end
+          end
+        end
+        current_section = current_section .. "</li>"
+      end
+      current_section = current_section .. "</" .. list_tag .. ">"
     end
   end
 
@@ -171,6 +194,32 @@ local function process_section(raw_html, is_error)
     clean_body = '<b>' .. clean_body .. '</b>'
   end
   local rendered = clean_body:gsub("\n", "<br />")
+
+  -- Normalize pandoc's checkbox symbols (☒ → ☑ for checked items)
+  rendered = rendered:gsub("☒", "☑")
+  -- Convert raw markdown task markers in callout bodies
+  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
+
+  -- Wrap task list lines (starting with checkbox) in reset span
+  local temp = rendered:gsub("<br />", "\n")
+  local lines = {}
+  for line in temp:gmatch("[^\n]+") do table.insert(lines, line) end
+  local parts = {}
+  for i, line in ipairs(lines) do
+    if line:find("^[☐☑]") then
+      table.insert(parts, '<span class="gh-callout-indent--reset">' .. line .. '</span>')
+    else
+      -- Non-task line: add br before if previous line was a task line
+      if i > 1 and lines[i-1]:find("^[☐☑]") then
+        table.insert(parts, "<br />" .. line)
+      elseif i > 1 then
+        table.insert(parts, "<br />" .. line)
+      else
+        table.insert(parts, line)
+      end
+    end
+  end
+  rendered = table.concat(parts, "")
 
   -- Wrap in span for padding/indent (class: gh-callout-indent)
   rendered = '<span class="gh-callout-indent">' .. rendered .. '</span>'
@@ -253,6 +302,60 @@ local function convert_sentinels_in_inline(elem)
     return elem
   end
   return elem
+end
+local function normalize_list_inlines(inlines)
+  local result = pandoc.List:new()
+  for _, elem in ipairs(inlines or {}) do
+    if elem.t == "Check" then
+      result:insert(pandoc.Str(elem.checked and "☑" or "☐"))
+    elseif elem.t == "Str" and elem.text then
+      result:insert(pandoc.Str(elem.text:gsub("☒", "☑")))
+    elseif elem.content and elem.t ~= "Str" then
+      elem.content = normalize_list_inlines(elem.content)
+      result:insert(elem)
+    else
+      result:insert(elem)
+    end
+  end
+  return result
+end
+local function has_checkboxes(items)
+  for _, item in ipairs(items or {}) do
+    if type(item) == "table" then
+      for _, elem in ipairs(item) do
+        if elem.t == "Plain" and elem.content and #elem.content > 0 then
+          local first = elem.content[1]
+          if first.t == "Str" and first.text and first.text:match("^[☐☑]") then
+            return true
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
+local function render_list_items(items, tag)
+  local html = '<div class="gh-task-list">'
+  for _, item in ipairs(items or {}) do
+    if type(item) == "table" then
+      html = html .. '<div class="gh-task-item">'
+      for _, elem in ipairs(item) do
+        if elem.content then
+          for _, inner in ipairs(elem.content) do
+            local part = inline_to_html(inner)
+            if #part > 0 then html = html .. part end
+          end
+        else
+          local part = inline_to_html(elem)
+          if #part > 0 then html = html .. part end
+        end
+      end
+      html = html .. '</div>'
+    end
+  end
+  html = html .. '</div>'
+  return html
 end
 
 return {
@@ -491,6 +594,36 @@ return {
       end
     end
     return span
+  end,
+  -- Normalize task list checkbox symbols (☒ → ☑) in lists
+  BulletList = function(list)
+    for _, item in ipairs(list.content or {}) do
+      if type(item) == "table" then
+        for _, elem in ipairs(item) do
+          if elem.content then
+            elem.content = normalize_list_inlines(elem.content)
+          end
+        end
+      end
+    end
+    -- Render task lists as raw HTML to suppress bullet points
+    if has_checkboxes(list.content) then
+      return pandoc.RawBlock("html", render_list_items(list.content))
+    end
+    return list
+  end,
+
+  OrderedList = function(list)
+    for _, item in ipairs(list.content or {}) do
+      if type(item) == "table" then
+        for _, elem in ipairs(item) do
+          if elem.content then
+            elem.content = normalize_list_inlines(elem.content)
+          end
+        end
+      end
+    end
+    return list
   end,
 
   -- Wrap document in .rr-theme div for Ghost theme CSS custom properties

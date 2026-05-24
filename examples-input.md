@@ -115,6 +115,17 @@ Backslash-escaped brackets inside fenced code blocks remain as literal text.
 
 ---
 
+## Task Lists
+
+Task list checkboxes are converted to symbols: ☐ for unchecked, ☑ for checked.
+
+- [ ] Unchecked item
+- [x] Checked item with lowercase x
+- [X] Also checked with uppercase X
+- Regular list item without checkbox
+
+---
+
 ## Horizontal Rules
 
 ---
@@ -161,7 +172,9 @@ The error callout has special handling: multi-layer chromatic aberration box-sha
 ### Task Callout
 
 > [!task] Beta Reader Checklist
-> Check for continuity errors in the magic system.
+> - [ ] Check for continuity errors in the magic system
+> - [x] Verify character names are consistent
+> - [ ] Review chapter pacing
 
 ### Quote Callout
 
