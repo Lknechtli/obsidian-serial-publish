@@ -55,6 +55,28 @@ end
 local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
+local function unescape_sentinels(text)
+  return text:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]"):gsub("\1LB", "["):gsub("\1RB", "]")
+end
+local function stringify_inlines(content)
+  local parts = {}
+  for _, el in ipairs(content or {}) do
+    if el.t == "Str" then
+      local t = unescape_sentinels(el.text); table.insert(parts, t)
+    elseif el.t == "Space" then
+      table.insert(parts, " ")
+    elseif el.t == "SoftBreak" then
+      table.insert(parts, " ")
+    elseif el.t == "LineBreak" then
+      table.insert(parts, " ")
+    elseif el.t == "Emph" or el.t == "Strong" then
+      local t = stringify_inlines(el.content); table.insert(parts, t)
+    elseif el.t == "RawInline" and el.format == "html" then
+      table.insert(parts, el.text)
+    end
+  end
+  return table.concat(parts)
+end
 
 -- Inline element to HTML (for callout body rendering)
 local inline_to_html
@@ -69,7 +91,7 @@ local function collect_inner(content)
 end
 
 inline_to_html = function(el)
-  if el.t == "Str" and el.text then return el.text:gsub("☒", "☑") end
+  if el.t == "Str" and el.text then local t = unescape_sentinels(el.text); return t:gsub("☒", "☑") end
   if el.t == "Space" then return " " end
   if el.t == "SoftBreak" then return " " end
   if el.t == "LineBreak" then return "<br/>" end
@@ -118,7 +140,7 @@ local function extract_callout_title(inlines)
       elseif inline.t == "Space" or inline.t == "SoftBreak" then
         table.insert(title_parts, " ")
       elseif inline.t == "Str" and inline.text then
-        table.insert(title_parts, inline.text)
+        local t = unescape_sentinels(inline.text); table.insert(title_parts, t)
       end
     end
   end
@@ -153,7 +175,7 @@ local function build_body_sections(bq_content)
             elseif elem.t == "SoftBreak" then
               table.insert(body_parts, "\n\n")
             elseif elem.t == "Str" and elem.text then
-              table.insert(body_parts, elem.text)
+              local t = unescape_sentinels(elem.text); table.insert(body_parts, t)
             else
               local html = inline_to_html(elem)
               if #html > 0 then table.insert(body_parts, html) end
@@ -609,7 +631,8 @@ return {
     for attr in pairs(attrs) do
       local effect = attr:match("^data%-(.+)$")
       if effect and data_span_defs[effect] then
-        return pandoc.RawInline("html", '<span class="gh-' .. effect .. '">' .. pandoc.utils.stringify(span.content) .. '</span>')
+        local inner = stringify_inlines(span.content)
+        return pandoc.RawInline("html", '<span class="gh-' .. effect .. '">' .. inner .. '</span>')
       end
     end
     return span
