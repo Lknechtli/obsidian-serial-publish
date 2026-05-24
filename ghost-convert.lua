@@ -147,7 +147,7 @@ local function build_body_sections(bq_content)
           for i = break_idx, #unwrapped.content do
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
-              table.insert(body_parts, "\n")
+              table.insert(body_parts, "\n\n")
             elseif elem.t == "Space" then
               table.insert(body_parts, " ")
             elseif elem.t == "SoftBreak" then
@@ -166,8 +166,11 @@ local function build_body_sections(bq_content)
       local unwrapped = unwrap_div(cblk)
       current_section = current_section .. "\n\n"
       for _, inline in ipairs(unwrapped.content or {}) do
-        local html = inline_to_html(inline)
-        if #html > 0 then current_section = current_section .. html end
+        if inline.t == "LineBreak" then current_section = current_section .. "\n\n"
+        else
+          local html = inline_to_html(inline)
+          if #html > 0 then current_section = current_section .. html end
+        end
       end
     elseif (cblk.t == "BulletList" or cblk.t == "OrderedList") and cblk.content then
       -- Convert list items to HTML for callout body rendering
