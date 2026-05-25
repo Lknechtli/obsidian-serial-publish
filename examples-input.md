@@ -205,6 +205,24 @@ A `---` separator inside a callout splits the body into separate table rows, eac
 > **Saving Throw**
 > Dexterity save or take 8d6 fire damage. Half damage on a success.
 
+### Multi-Column Callout
+
+A `|` separator inside a callout line splits the content into multiple table columns.
+
+> [!tip] Character Stats
+> **Name** | **Class** | **Level**
+> Kael | Wizard | 5
+> Mira | Rogue | 3
+### Mixed Column Counts
+
+Rows with fewer columns than the max are padded with empty cells.
+
+> [!tip] Spell Comparison
+> **Spell** | **School** | **Level**
+> Fireball | Evocation | 3
+> Shield | Abjuration | 2
+> Simple spell with no columns
+
 ---
 
 ## Unknown Callout Types

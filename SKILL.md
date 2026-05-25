@@ -269,6 +269,14 @@ All callout styling is configured in `rr-convert.settings.lua` under `callouts` 
 - Chromatic aberration via multi-layer box-shadow (red/cyan offsets in multiple directions)
 - **All body text is bold** — wrapped in `<b>` tags
 
+**Multi-column support:** Use `|` to split callout body lines into table columns. Each line becomes a `<tr>` row; cells within that row are split by `|`. Lines without `|` span all columns. Example:
+
+```markdown
+> [!tip] Character Stats
+> **Name** | **Class** | **Level**
+> Kael | Wizard | 5
+```
+
 **Note:** Type variants with numeric suffixes (e.g., `task-1`) are normalized to their base type (`task`). Unknown types default to `info`.
 ---
 

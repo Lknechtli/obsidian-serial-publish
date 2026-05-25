@@ -55,6 +55,22 @@ end
 local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
+local function style_cell(content, is_error)
+  local styled = content:gsub("^%s+", ""):gsub("%s+$", "")
+  if is_error then styled = '<b>' .. styled .. '</b>' end
+  styled = styled:gsub("☒", "☑")
+  styled = styled:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
+  styled = styled:gsub("\n", "<br />")
+  styled = styled:gsub("\x02", "<br />")
+  local parts = {}
+  if styled:find("^[☐☑]") then
+    table.insert(parts, '<span class="gh-callout-indent--reset">' .. styled .. '</span>')
+  else
+    table.insert(parts, '<p class="gh-callout-indent--para">' .. styled .. '</p>')
+  end
+  local rendered = '<div class="gh-callout-indent">' .. table.concat(parts, "") .. '</div>'
+  return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
+end
 local function unescape_sentinels(text)
   return text:gsub("\1LB\1LB", "[["):gsub("\1RB\1RB", "]]"):gsub("\1LB", "["):gsub("\1RB", "]")
 end
@@ -166,14 +182,14 @@ local function build_body_sections(bq_content)
         _, _, break_idx = extract_callout_title(unwrapped.content)
         local body_parts = {}
         if break_idx > 0 then
-          for i = break_idx, #unwrapped.content do
+          for i = break_idx + 1, #unwrapped.content do
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n\n")
             elseif elem.t == "Space" then
               table.insert(body_parts, " ")
             elseif elem.t == "SoftBreak" then
-              table.insert(body_parts, "\n\n")
+              table.insert(body_parts, "\x02")
             elseif elem.t == "Str" and elem.text then
               local t = unescape_sentinels(elem.text); table.insert(body_parts, t)
             else
@@ -234,9 +250,11 @@ local function process_section(raw_html, is_error)
   -- Convert raw markdown task markers in callout bodies
   clean_body = clean_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
 
+  -- Treat SoftBreak sentinels as paragraph separators alongside \n\n
+  local normalized = clean_body:gsub("\x02", " ")
   -- Split on \n\n to preserve paragraph boundaries
   local paragraphs = {}
-  local delimited = clean_body:gsub("\n\n", "\x01")
+  local delimited = normalized:gsub("\n\n", "\x01")
   for para in delimited:gmatch("[^\1]+") do
     table.insert(paragraphs, para)
   end
@@ -272,29 +290,67 @@ local function build_table_html(callout_type, title, processed_sections)
   local def = callout_defs[callout_type] or {}
   local symbol = def.symbol or ""
 
+  -- Determine max columns across all sections (for header colspan)
+  local max_cols = 2  -- default for backward compatibility
+  for _, s in ipairs(processed_sections) do
+    if type(s) == "table" and s.max_cols and s.max_cols > max_cols then
+      max_cols = s.max_cols
+    end
+  end
+
   local html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
   html = html .. '<table class="gh-callout-table"><tbody>\n'
 
   -- Title row with traffic lights
   local title_display = symbol ~= "" and (symbol .. " " .. title) or title
-  html = html .. '<tr><td colspan="2" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
+  html = html .. '<tr><td colspan="' .. max_cols .. '" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
 
   -- Body rows (skip empty sections)
   local num_body_sections = 0
   for _, s in ipairs(processed_sections) do
-    if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
+    if type(s) == "table" and s.rows then
+      if #s.rows > 0 then num_body_sections = num_body_sections + 1 end
+    elseif #s:gsub("^%s*$", "") > 0 then
+      num_body_sections = num_body_sections + 1
+    end
   end
   local rendered_count = 0
-  for idx, section in ipairs(processed_sections) do
-    local trimmed = section:gsub("^%s*$", "")
-    if #trimmed > 0 then
-      rendered_count = rendered_count + 1
-      local body_html = process_section(section, callout_type == "error")
-      local cell_class = 'gh-callout-body'
-      if idx > 1 then
-        cell_class = cell_class .. ' gh-callout-separator'
+  for section_idx, section_item in ipairs(processed_sections) do
+    if type(section_item) == "table" and section_item.rows then
+      -- Multi-column section: render each row as <tr> with multiple <td> cells
+      for _, cols in ipairs(section_item.rows) do
+        rendered_count = rendered_count + 1
+        local cell_class = 'gh-callout-body'
+        if rendered_count > 1 then cell_class = cell_class .. ' gh-callout-separator' end
+        html = html .. '<tr>'
+        for col_idx, cell_html in ipairs(cols) do
+          -- Add body-cell class for vertical borders (last column handled by CSS)
+          local cell_classes = cell_class
+          if col_idx < max_cols then
+            cell_classes = cell_classes .. ' gh-callout-body-cell'
+          end
+          html = html .. '<td class="' .. cell_classes .. '">' .. cell_html .. '</td>\n'
+        end
+        -- Fill remaining columns with empty cells for alignment
+        for i = #cols + 1, max_cols do
+          -- Empty spacer cells get vertical border class except for the last column
+          local cell_classes = cell_class
+          if i < max_cols then
+            cell_classes = cell_classes .. ' gh-callout-body-cell'
+          end
+          html = html .. '<td class="' .. cell_classes .. '"></td>\n'
+        end
+        html = html .. '</tr>\n'
       end
-      html = html .. '<tr><td colspan="2" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
+    else
+      local trimmed = section_item:gsub("^%s*$", "")
+      if #trimmed > 0 then
+        rendered_count = rendered_count + 1
+        local body_html = process_section(section_item, callout_type == "error")
+        local cell_class = 'gh-callout-body'
+        if section_idx > 1 then cell_class = cell_class .. ' gh-callout-separator' end
+        html = html .. '<tr><td colspan="' .. max_cols .. '" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
+      end
     end
   end
 
@@ -306,8 +362,35 @@ local function convert_callout(callout_type, title, bq_content)
 
   local body_sections = build_body_sections(bq_content)
   local processed = {}
-  for _, section in ipairs(body_sections) do
-    table.insert(processed, section)
+  local is_error = (callout_type == "error")
+  for _, raw_html in ipairs(body_sections) do
+    if raw_html:find("|") then
+      -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
+      local rows = {}
+      local max_cols = 0
+      -- Treat SoftBreak sentinels as row separators alongside paragraph breaks
+      local normalized = raw_html:gsub("\x02", "\n\n")
+      local delimited = normalized:gsub("\n\n", "\x01")
+      for row_text in delimited:gmatch("[^\1]+") do
+        local cols = {}
+        for col_text in row_text:gmatch("[^|]+") do
+          local trimmed = col_text:gsub("^%s+", ""):gsub("%s+$", "")
+          if #trimmed > 0 then
+            table.insert(cols, style_cell(trimmed, is_error))
+          end
+        end
+        if #cols > 0 then
+          table.insert(rows, cols)
+          if #cols > max_cols then max_cols = #cols end
+        end
+      end
+      if #rows > 0 then
+        local multi = { rows = rows, max_cols = max_cols }
+        table.insert(processed, multi)
+      end
+    else
+      table.insert(processed, raw_html)
+    end
   end
 
   local table_html = build_table_html(callout_type, title or "", processed)

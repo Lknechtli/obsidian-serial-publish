@@ -74,6 +74,29 @@ end
 local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
+local function style_cell(content, is_error)
+  local styled = content
+  if is_error then styled = '<b>' .. styled .. '</b>' end
+  styled = styled:gsub("\n", "<br />")
+  styled = styled:gsub("\x02", "<br />")
+  styled = styled:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
+  if styled:find("data-") then
+    for _, cfg in ipairs(data_span_patterns) do
+      styled = styled:gsub(cfg.pattern, cfg.replacer)
+    end
+  end
+  local segments = {}
+  local delimited = styled:gsub("<br />", "\x01")
+  for seg in delimited:gmatch("[^\1]+") do
+    local span_style = "display:block!important;padding-left:1em!important;text-indent:-1em!important;"
+    if #seg == 0 then span_style = span_style .. "height:1em!important;" end
+    table.insert(segments, '<span style="' .. span_style .. '">' .. seg .. '</span>')
+  end
+  if styled:sub(-6) == "<br />" then
+    table.insert(segments, '<span style="display:block!important;padding-left:1em!important;text-indent:-1em!important;height:1em!important;"></span>')
+  end
+  return (table.concat(segments):gsub("&([^;])", function(c) return "&amp;" .. c end))
+end
 
 local inline_to_html
 local function collect_inner(content)
@@ -176,14 +199,16 @@ local function build_body_sections(bq_content)
         _, _, break_idx = extract_callout_title(unwrapped.content)
         local body_parts = {}
         if break_idx > 0 then
-          for i = break_idx, #unwrapped.content do
+          for i = break_idx + 1, #unwrapped.content do
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n")
-            elseif elem.t == "Space" or elem.t == "SoftBreak" then
+            elseif elem.t == "Space" then
               local prev_is_str = i > 1 and (unwrapped.content[i-1].t == "Str")
               local next_is_str = i < #unwrapped.content and unwrapped.content[i+1] and unwrapped.content[i+1].t == "Str"
               if prev_is_str or next_is_str then table.insert(body_parts, " ") end
+            elseif elem.t == "SoftBreak" then
+              table.insert(body_parts, "\x02")
             elseif elem.t == "Str" and elem.text then
               table.insert(body_parts, elem.text)
             else
@@ -221,8 +246,9 @@ local function process_section(raw_html, is_error)
     clean_body = '<b>' .. clean_body .. '</b>'
   end
   local rendered = clean_body:gsub("\n", "<br />")
+  rendered = rendered:gsub("\x02", " ")
 
-  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
+  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
 
   -- Apply each data-* span style from settings (skip if no data- attributes present)
   if rendered:find("data-") then
@@ -231,7 +257,6 @@ local function process_section(raw_html, is_error)
     end
   end
   local lines = {}
-  rendered = rendered:gsub("\n", "<br />")
   if rendered ~= "" then
     rendered = rendered:gsub("<br />", "\x01")
     for segment in rendered:gmatch("[^\1]+") do
@@ -270,7 +295,19 @@ local function build_table_html(callout_type, title, processed_sections)
 
   local num_body_sections = 0
   for _, s in ipairs(processed_sections) do
-    if #s:gsub("^%s*$", "") > 0 then num_body_sections = num_body_sections + 1 end
+    if type(s) == "table" and s.rows then
+      if #s.rows > 0 then num_body_sections = num_body_sections + 1 end
+    elseif #s:gsub("^%s*$", "") > 0 then
+      num_body_sections = num_body_sections + 1
+    end
+  end
+
+  -- Determine max columns across all sections (for header colspan)
+  local max_cols = 2  -- default for backward compatibility
+  for _, s in ipairs(processed_sections) do
+    if type(s) == "table" and s.max_cols and s.max_cols > max_cols then
+      max_cols = s.max_cols
+    end
   end
 
   -- Wrapper + table opening
@@ -286,20 +323,50 @@ local function build_table_html(callout_type, title, processed_sections)
     local border_heading_tpl = def.border_heading or 'border-bottom:2px solid %s!important;'
     local bottom_border = num_body_sections > 0 and border_heading_tpl:format(color) or ''
     local prefix = callout_table_cfg.title_prefix or ''
-    html = html .. '<tr><td style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
+    html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
   end
 
   -- Body rows
   local body_style     = def.body_style     or 'padding:0.5em 1em!important;border:none!important;'
   local border_between = def.border_between or 'border-bottom:1px solid %s!important;'
   local rendered_count = 0
-  for _, section_html in ipairs(processed_sections) do
-    local trimmed = section_html:gsub("^%s*$", "")
-    if #trimmed > 0 then
-      rendered_count = rendered_count + 1
-      local is_last = (rendered_count == num_body_sections)
-      local sep_border = not is_last and border_between:format(color) or ''
-      html = html .. '<tr><td style="' .. body_style .. sep_border .. '">' .. section_html .. '</td></tr>'
+  for _, section_item in ipairs(processed_sections) do
+    if type(section_item) == "table" and section_item.rows then
+      -- Multi-column section: render each row as <tr> with multiple <td> cells
+      local total_rows = #section_item.rows
+      for row_idx, cols in ipairs(section_item.rows) do
+        rendered_count = rendered_count + 1
+        local is_last_row = (rendered_count == num_body_sections)
+        local sep_border = not is_last_row and border_between:format(color) or ''
+        html = html .. '<tr>'
+        for col_idx, cell_html in ipairs(cols) do
+          -- Add vertical border to all cells except the last column
+          local vert_border = ''
+          if col_idx < max_cols then
+            vert_border = 'border-right:1px solid ' .. color .. '66!important;'
+          end
+          html = html .. '<td style="' .. body_style .. vert_border .. sep_border .. '">' .. cell_html .. '</td>'
+        end
+        -- Fill remaining columns with empty cells for alignment
+        for i = #cols + 1, max_cols do
+          -- Empty spacer cells get vertical border except for the last column
+          local vert_border = ''
+          if i < max_cols then
+            vert_border = 'border-right:1px solid ' .. color .. '66!important;'
+          end
+          html = html .. '<td style="' .. body_style .. vert_border .. sep_border .. '"></td>'
+        end
+        html = html .. '</tr>'
+      end
+    else
+      local trimmed = section_item:gsub("^%s*$", "")
+      if #trimmed > 0 then
+        rendered_count = rendered_count + 1
+        local is_last = (rendered_count == num_body_sections)
+        local sep_border = not is_last and border_between:format(color) or ''
+        html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. body_style .. sep_border .. '">' .. section_item .. '</td></tr>'
+
+      end
     end
   end
 
@@ -317,7 +384,33 @@ local function convert_callout(callout_type, title, bq_content)
   local processed_sections = {}
   local is_error = (callout_type == "error")
   for _, raw_html in ipairs(body_sections) do
-    table.insert(processed_sections, process_section(raw_html, is_error))
+    if raw_html:find("|") then
+      -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
+      local rows = {}
+      local max_cols = 0
+      -- Treat SoftBreak sentinels as row separators alongside paragraph breaks
+      local normalized = raw_html:gsub("\x02", "\n\n")
+      local delimited = normalized:gsub("\n\n", "\x01")
+      for row_text in delimited:gmatch("[^\1]+") do
+        local cols = {}
+        for col_text in row_text:gmatch("[^|]+") do
+          local trimmed = col_text:gsub("^%s+", ""):gsub("%s+$", "")
+          if #trimmed > 0 then
+            table.insert(cols, style_cell(trimmed, is_error))
+          end
+        end
+        if #cols > 0 then
+          table.insert(rows, cols)
+          if #cols > max_cols then max_cols = #cols end
+        end
+      end
+      if #rows > 0 then
+        local multi = { rows = rows, max_cols = max_cols }
+        table.insert(processed_sections, multi)
+      end
+    else
+      table.insert(processed_sections, process_section(raw_html, is_error))
+    end
   end
 
   local table_html = build_table_html(callout_type, title, processed_sections)
