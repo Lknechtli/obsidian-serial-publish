@@ -74,12 +74,6 @@ end
 local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
-local function has_column_separator(text)
-  -- Strip HTML tags before checking for | to avoid false positives
-  -- from pipes inside <code>, <span>, or other rendered elements
-  local plain = text:gsub("<[^>]->", "")
-  return plain:find("|")
-end
 local function style_cell(content, is_error)
   local styled = content
   if is_error then styled = '<b>' .. styled .. '</b>' end
@@ -370,7 +364,8 @@ local function build_table_html(callout_type, title, processed_sections)
         rendered_count = rendered_count + 1
         local is_last = (rendered_count == num_body_sections)
         local sep_border = not is_last and border_between:format(color) or ''
-        html = html .. '<tr><td style="' .. body_style .. sep_border .. '">' .. section_item .. '</td></tr>'
+        html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. body_style .. sep_border .. '">' .. section_item .. '</td></tr>'
+
       end
     end
   end
@@ -389,7 +384,7 @@ local function convert_callout(callout_type, title, bq_content)
   local processed_sections = {}
   local is_error = (callout_type == "error")
   for _, raw_html in ipairs(body_sections) do
-    if has_column_separator(raw_html) then
+    if raw_html:find("|") then
       -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
       local rows = {}
       local max_cols = 0

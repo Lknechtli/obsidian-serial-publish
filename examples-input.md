@@ -213,6 +213,15 @@ A `|` separator inside a callout line splits the content into multiple table col
 > **Name** | **Class** | **Level**
 > Kael | Wizard | 5
 > Mira | Rogue | 3
+### Mixed Column Counts
+
+Rows with fewer columns than the max are padded with empty cells.
+
+> [!tip] Spell Comparison
+> **Spell** | **School** | **Level**
+> Fireball | Evocation | 3
+> Shield | Abjuration | 2
+> Simple spell with no columns
 
 ---
 
