@@ -74,6 +74,12 @@ end
 local function escape_html(txt)
   return txt:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
+local function has_column_separator(text)
+  -- Strip HTML tags before checking for | to avoid false positives
+  -- from pipes inside <code>, <span>, or other rendered elements
+  local plain = text:gsub("<[^>]->", "")
+  return plain:find("|")
+end
 local function style_cell(content, is_error)
   local styled = content
   if is_error then styled = '<b>' .. styled .. '</b>' end
@@ -257,7 +263,6 @@ local function process_section(raw_html, is_error)
     end
   end
   local lines = {}
-  rendered = rendered:gsub("\n", "<br />")
   if rendered ~= "" then
     rendered = rendered:gsub("<br />", "\x01")
     for segment in rendered:gmatch("[^\1]+") do
@@ -384,7 +389,7 @@ local function convert_callout(callout_type, title, bq_content)
   local processed_sections = {}
   local is_error = (callout_type == "error")
   for _, raw_html in ipairs(body_sections) do
-    if raw_html:find("|") then
+    if has_column_separator(raw_html) then
       -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
       local rows = {}
       local max_cols = 0
