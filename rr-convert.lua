@@ -79,7 +79,7 @@ local function style_cell(content, is_error)
   if is_error then styled = '<b>' .. styled .. '</b>' end
   styled = styled:gsub("\n", "<br />")
   styled = styled:gsub("\x02", "<br />")
-  styled = styled:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
+  styled = styled:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
   if styled:find("data-") then
     for _, cfg in ipairs(data_span_patterns) do
       styled = styled:gsub(cfg.pattern, cfg.replacer)
@@ -199,7 +199,7 @@ local function build_body_sections(bq_content)
         _, _, break_idx = extract_callout_title(unwrapped.content)
         local body_parts = {}
         if break_idx > 0 then
-          for i = break_idx, #unwrapped.content do
+          for i = break_idx + 1, #unwrapped.content do
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n")
@@ -246,9 +246,9 @@ local function process_section(raw_html, is_error)
     clean_body = '<b>' .. clean_body .. '</b>'
   end
   local rendered = clean_body:gsub("\n", "<br />")
-  rendered = rendered:gsub("\x02", "<br />")
+  rendered = rendered:gsub("\x02", " ")
 
-  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[%XX%]", "☑")
+  rendered = rendered:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
 
   -- Apply each data-* span style from settings (skip if no data- attributes present)
   if rendered:find("data-") then
@@ -303,6 +303,14 @@ local function build_table_html(callout_type, title, processed_sections)
     end
   end
 
+  -- Determine max columns across all sections (for header colspan)
+  local max_cols = 2  -- default for backward compatibility
+  for _, s in ipairs(processed_sections) do
+    if type(s) == "table" and s.max_cols and s.max_cols > max_cols then
+      max_cols = s.max_cols
+    end
+  end
+
   -- Wrapper + table opening
   local wrapper_style = callout_table_cfg.wrapper_style or 'max-width:60ch!important;margin:auto;'
   local table_style   = callout_table_cfg.table_style   or 'border-spacing:0!important;background:#1a1a2e!important;color:#ddd!important;width:100%!important;font-family:monospace!important;font-size:0.9em!important;white-space:pre-wrap!important;border-radius:8px !important;'
@@ -316,7 +324,7 @@ local function build_table_html(callout_type, title, processed_sections)
     local border_heading_tpl = def.border_heading or 'border-bottom:2px solid %s!important;'
     local bottom_border = num_body_sections > 0 and border_heading_tpl:format(color) or ''
     local prefix = callout_table_cfg.title_prefix or ''
-    html = html .. '<tr><td style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
+    html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
   end
 
   -- Body rows
@@ -332,12 +340,22 @@ local function build_table_html(callout_type, title, processed_sections)
         local is_last_row = (rendered_count == num_body_sections)
         local sep_border = not is_last_row and border_between:format(color) or ''
         html = html .. '<tr>'
-        for _, cell_html in ipairs(cols) do
-          html = html .. '<td style="' .. body_style .. sep_border .. '">' .. cell_html .. '</td>'
+        for col_idx, cell_html in ipairs(cols) do
+          -- Add vertical border to all cells except the last column
+          local vert_border = ''
+          if col_idx < max_cols then
+            vert_border = 'border-right:1px solid ' .. color .. '66!important;'
+          end
+          html = html .. '<td style="' .. body_style .. vert_border .. sep_border .. '">' .. cell_html .. '</td>'
         end
         -- Fill remaining columns with empty cells for alignment
-        for i = #cols + 1, section_item.max_cols do
-          html = html .. '<td style="' .. body_style .. sep_border .. '"></td>'
+        for i = #cols + 1, max_cols do
+          -- Empty spacer cells get vertical border except for the last column
+          local vert_border = ''
+          if i < max_cols then
+            vert_border = 'border-right:1px solid ' .. color .. '66!important;'
+          end
+          html = html .. '<td style="' .. body_style .. vert_border .. sep_border .. '"></td>'
         end
         html = html .. '</tr>'
       end

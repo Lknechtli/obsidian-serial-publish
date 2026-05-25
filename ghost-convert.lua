@@ -182,7 +182,7 @@ local function build_body_sections(bq_content)
         _, _, break_idx = extract_callout_title(unwrapped.content)
         local body_parts = {}
         if break_idx > 0 then
-          for i = break_idx, #unwrapped.content do
+          for i = break_idx + 1, #unwrapped.content do
             local elem = unwrapped.content[i]
             if elem.t == "LineBreak" then
               table.insert(body_parts, "\n\n")
@@ -251,7 +251,7 @@ local function process_section(raw_html, is_error)
   clean_body = clean_body:gsub("[-*+]%s+%[ %]", "☐"):gsub("[-*+]%s+%[x]", "☑"):gsub("[-*+]%s+%[X]", "☑")
 
   -- Treat SoftBreak sentinels as paragraph separators alongside \n\n
-  local normalized = clean_body:gsub("\x02", "\n\n")
+  local normalized = clean_body:gsub("\x02", " ")
   -- Split on \n\n to preserve paragraph boundaries
   local paragraphs = {}
   local delimited = normalized:gsub("\n\n", "\x01")
@@ -290,12 +290,20 @@ local function build_table_html(callout_type, title, processed_sections)
   local def = callout_defs[callout_type] or {}
   local symbol = def.symbol or ""
 
+  -- Determine max columns across all sections (for header colspan)
+  local max_cols = 2  -- default for backward compatibility
+  for _, s in ipairs(processed_sections) do
+    if type(s) == "table" and s.max_cols and s.max_cols > max_cols then
+      max_cols = s.max_cols
+    end
+  end
+
   local html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
   html = html .. '<table class="gh-callout-table"><tbody>\n'
 
   -- Title row with traffic lights
   local title_display = symbol ~= "" and (symbol .. " " .. title) or title
-  html = html .. '<tr><td colspan="2" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
+  html = html .. '<tr><td colspan="' .. max_cols .. '" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
 
   -- Body rows (skip empty sections)
   local num_body_sections = 0
@@ -315,12 +323,22 @@ local function build_table_html(callout_type, title, processed_sections)
         local cell_class = 'gh-callout-body'
         if rendered_count > 1 then cell_class = cell_class .. ' gh-callout-separator' end
         html = html .. '<tr>'
-        for _, cell_html in ipairs(cols) do
-          html = html .. '<td class="' .. cell_class .. '">' .. cell_html .. '</td>\n'
+        for col_idx, cell_html in ipairs(cols) do
+          -- Add body-cell class for vertical borders (last column handled by CSS)
+          local cell_classes = cell_class
+          if col_idx < max_cols then
+            cell_classes = cell_classes .. ' gh-callout-body-cell'
+          end
+          html = html .. '<td class="' .. cell_classes .. '">' .. cell_html .. '</td>\n'
         end
         -- Fill remaining columns with empty cells for alignment
-        for i = #cols + 1, section_item.max_cols do
-          html = html .. '<td class="' .. cell_class .. '"></td>\n'
+        for i = #cols + 1, max_cols do
+          -- Empty spacer cells get vertical border class except for the last column
+          local cell_classes = cell_class
+          if i < max_cols then
+            cell_classes = cell_classes .. ' gh-callout-body-cell'
+          end
+          html = html .. '<td class="' .. cell_classes .. '"></td>\n'
         end
         html = html .. '</tr>\n'
       end
@@ -331,7 +349,7 @@ local function build_table_html(callout_type, title, processed_sections)
         local body_html = process_section(section_item, callout_type == "error")
         local cell_class = 'gh-callout-body'
         if section_idx > 1 then cell_class = cell_class .. ' gh-callout-separator' end
-        html = html .. '<tr><td colspan="2" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
+        html = html .. '<tr><td colspan="' .. max_cols .. '" class="' .. cell_class .. '">' .. body_html .. '</td></tr>\n'
       end
     end
   end
