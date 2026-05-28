@@ -241,10 +241,10 @@ end
 
 local function process_section(raw_html, is_error)
   local clean_body = raw_html:gsub("^%s+", ""):gsub("%s+$", "")
+  if #clean_body == 0 then return "" end
   if is_error then
     clean_body = '<b>' .. clean_body .. '</b>'
   end
-
   -- Normalize pandoc's checkbox symbols (☒ → ☑ for checked items)
   clean_body = clean_body:gsub("☒", "☑")
   -- Convert raw markdown task markers in callout bodies
@@ -763,7 +763,9 @@ return {
       elseif blk.t == "Div" and #blk.content > 0 then
         txt = pandoc.utils.stringify(blk.content[1]):gsub("^%s+", ""):gsub("%s+$", "")
       end
-      if txt == "%%" then
+      -- Toggle on %% at start of text (handles "%% comment" merged by pandoc)
+      local after_pct = txt:gsub("^%%%s*", "", 1)
+      if #after_pct < #txt then
         in_comment = not in_comment
         goto continue
       end
@@ -773,7 +775,6 @@ return {
       ::continue::
     end
     doc.blocks = filtered
-
     -- Wrap content in .rr-theme div for theme CSS (no embedded <style>)
     local final = pandoc.List:new()
     final:insert(pandoc.RawBlock("html", '<div class="rr-theme">'))

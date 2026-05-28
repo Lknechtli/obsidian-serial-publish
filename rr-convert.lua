@@ -242,6 +242,7 @@ end
 
 local function process_section(raw_html, is_error)
   local clean_body = raw_html:gsub("^%s+", ""):gsub("%s+$", "")
+  if #clean_body == 0 then return "" end
   if is_error then
     clean_body = '<b>' .. clean_body .. '</b>'
   end
@@ -785,7 +786,9 @@ return {
       elseif blk.t == "Div" and #blk.content > 0 then
         txt = pandoc.utils.stringify(blk.content[1]):gsub("^%s+", ""):gsub("%s+$", "")
       end
-      if txt == "%%" then
+      -- Toggle on %% at start of text (handles "%% comment" merged by pandoc)
+      local after_pct = txt:gsub("^%%%s*", "", 1)
+      if #after_pct < #txt then
         in_comment = not in_comment
         goto continue
       end
@@ -795,7 +798,6 @@ return {
       ::continue::
     end
     doc.blocks = filtered
-
     -- Build <style> block from rr_defaults (stripped by RR, preserved standalone)
     local rules = {}
     local rr_font = rr_defaults.font
