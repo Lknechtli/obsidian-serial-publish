@@ -40,6 +40,12 @@ end
 
 local function normalize_callout_type(t)
   if not t then return nil end
+  -- Bare "hidden" is shorthand for "info-hidden"
+  if t == "hidden" then return "info-hidden" end
+  if t:match("-hidden$") then
+    local base = t:gsub("-hidden$", "")
+    if callout_colors[base] then return t end
+  end
   local base = t:match("^([a-zA-Z]+)")
   if base and callout_colors[base] then return base end
   return nil
@@ -286,7 +292,8 @@ local function process_section(raw_html, is_error)
   return (rendered:gsub("&([^;])", function(c) return "&amp;" .. c end))
 end
 
-local function build_table_html(callout_type, title, processed_sections)
+local function build_table_html(callout_type, title, processed_sections, include_header, wrap_div)
+  if wrap_div == nil then wrap_div = true end -- default to true
   local def = callout_defs[callout_type] or {}
   local symbol = def.symbol or ""
 
@@ -298,12 +305,18 @@ local function build_table_html(callout_type, title, processed_sections)
     end
   end
 
-  local html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
+  local html = ""
+  if wrap_div then
+    html = '<div class="gh-callout gh-callout--' .. callout_type .. '">\n'
+  end
   html = html .. '<table class="gh-callout-table"><tbody>\n'
 
   -- Title row with traffic lights
-  local title_display = symbol ~= "" and (symbol .. " " .. title) or title
-  html = html .. '<tr><td colspan="' .. max_cols .. '" class="gh-callout-header"><span class="gh-traffic-light"><span class="gh-tl-red">⬤</span><span class="gh-tl-yellow">⬤</span><span class="gh-tl-green">⬤</span></span> ' .. escape_html(title_display) .. '</td></tr>\n'
+  if include_header ~= false then
+    local title_text = title or ""
+    local title_display = symbol ~= "" and (symbol .. " " .. title_text) or title_text
+    html = html .. '<tr><td colspan="' .. max_cols .. '" class="gh-callout-header">' .. escape_html(title_display) .. '</td></tr>\n'
+  end
 
   -- Body rows (skip empty sections)
   local num_body_sections = 0
@@ -354,15 +367,22 @@ local function build_table_html(callout_type, title, processed_sections)
     end
   end
 
-  return html .. '</tbody></table></div>'
+  local footer = '</tbody></table>'
+  if wrap_div then
+    footer = footer .. '</div>'
+  end
+  return html .. footer
 end
 
 local function convert_callout(callout_type, title, bq_content)
-  callout_type = callout_colors[callout_type] and callout_type or "info"
-
+  local isHidden = callout_type:match("-hidden$")
+  local baseType = isHidden and callout_type:gsub("-hidden$", "") or callout_type
+  
+  baseType = callout_colors[baseType] and baseType or "info"
+  
   local body_sections = build_body_sections(bq_content)
   local processed = {}
-  local is_error = (callout_type == "error")
+  local is_error = (baseType == "error")
   for _, raw_html in ipairs(body_sections) do
     if raw_html:find("|") then
       -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
@@ -393,7 +413,25 @@ local function convert_callout(callout_type, title, bq_content)
     end
   end
 
-  local table_html = build_table_html(callout_type, title or "", processed)
+  if isHidden then
+    local display_title = title or (baseType:sub(1,1):upper() .. baseType:sub(2))
+
+    -- Build the table body only (no header row, no outer wrapper)
+    local table_body_only = build_table_html(baseType, nil, processed, false, false)
+
+    -- Build the summary (clickable title bar) — same content as a normal header row
+    local summary_html = escape_html(display_title)
+
+    local html = '<div class="gh-callout gh-callout--' .. baseType .. ' gh-callout--hidden">'
+    html = html .. '<details class="gh-callout-details gh-callout-table">'
+    html = html .. '<summary class="gh-callout-header" style="cursor: pointer;">' .. summary_html .. '</summary>'
+    html = html .. table_body_only
+    html = html .. '</details>'
+    html = html .. '</div>'
+    return pandoc.RawBlock("html", html)
+  end
+
+  local table_html = build_table_html(baseType, title or (baseType:sub(1,1):upper() .. baseType:sub(2)), processed)
   return pandoc.RawBlock("html", table_html)
 end
 

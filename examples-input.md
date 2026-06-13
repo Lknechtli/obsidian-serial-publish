@@ -223,6 +223,26 @@ Rows with fewer columns than the max are padded with empty cells.
 > Shield | Abjuration | 2
 > Simple spell with no columns
 
+### Hidden Callouts (New)
+
+These callouts collapse into a title bar and require a click to expand.
+
+> [!hidden] Hidden Simple
+> This content should be hidden until clicked. It's a simple paragraph.
+
+> [!hidden] Hidden Table
+> Here is a table inside a hidden callout:
+>
+> | Column A | Column B |
+> |----------|----------|
+> | Value 1  | Value 2  |
+> | Value 3  | Value 4  |
+
+> [!hidden] Hidden Multi-column
+> This is a hidden callout with a multi-column section:
+> Item 1 | Item 2
+> Item 3 | Item 4
+
 ---
 
 ## Unknown Callout Types
