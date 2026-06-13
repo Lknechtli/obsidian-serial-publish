@@ -50,6 +50,12 @@ end
 
 local function normalize_callout_type(t)
   if not t then return nil end
+  -- Bare "hidden" is shorthand for "info-hidden"
+  if t == "hidden" then return "info-hidden" end
+  if t:match("-hidden$") then
+    local base = t:gsub("-hidden$", "")
+    if callout_colors[base] then return t end
+  end
   if callout_colors[t] then return t end
   local base = t:match("^(.-)%-[%d]+$")
   if base and callout_colors[base] then return base end
@@ -323,8 +329,7 @@ local function build_table_html(callout_type, title, processed_sections)
     local heading_style = heading_style_tpl:format(color)
     local border_heading_tpl = def.border_heading or 'border-bottom:2px solid %s!important;'
     local bottom_border = num_body_sections > 0 and border_heading_tpl:format(color) or ''
-    local prefix = callout_table_cfg.title_prefix or ''
-    html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. heading_style .. bottom_border .. '">' .. prefix .. esc_title .. '</td></tr>'
+    html = html .. '<tr><td colspan="' .. max_cols .. '" style="' .. heading_style .. bottom_border .. '">' .. esc_title .. '</td></tr>'
   end
 
   -- Body rows
@@ -375,15 +380,18 @@ local function build_table_html(callout_type, title, processed_sections)
 end
 
 local function convert_callout(callout_type, title, bq_content)
-  callout_type = callout_colors[callout_type] and callout_type or "info"
-  title = title or (callout_type:sub(1,1):upper() .. callout_type:sub(2))
-  local sym = callout_symbols[callout_type] or ""
+  local isHidden = callout_type:match("-hidden$")
+  local baseType = isHidden and callout_type:gsub("-hidden$", "") or callout_type
+
+  baseType = callout_colors[baseType] and baseType or "info"
+  title = title or (baseType:sub(1,1):upper() .. baseType:sub(2))
+  local sym = callout_symbols[baseType] or ""
   if sym then title = sym .. title end
 
   local body_sections = build_body_sections(bq_content)
 
   local processed_sections = {}
-  local is_error = (callout_type == "error")
+  local is_error = (baseType == "error")
   for _, raw_html in ipairs(body_sections) do
     if raw_html:find("|") then
       -- Multi-column section: split by \x02 (SoftBreak) or \n\n (paragraphs), then by | (columns)
@@ -414,7 +422,15 @@ local function convert_callout(callout_type, title, bq_content)
     end
   end
 
-  local table_html = build_table_html(callout_type, title, processed_sections)
+  if isHidden then
+    -- Build the callout table with full title row (visible when spoiler is expanded)
+    local table_html = build_table_html(baseType, title, processed_sections)
+
+    local html = '<div class="spoiler-new" data-class="spoiler" data-caption="' .. escape_html(title) .. '">' .. table_html .. '</div>'
+    return pandoc.RawBlock("html", html)
+  end
+
+  local table_html = build_table_html(baseType, title, processed_sections)
   return pandoc.RawBlock("html", table_html)
 end
 
