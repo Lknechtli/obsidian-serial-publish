@@ -365,3 +365,31 @@ For every markdown-to-RR-HTML conversion via the Lua filter, verify:
 - [ ] All `box-shadow` properties are single declarations (RR only keeps the first)
 
 **Note:** CSS-level conversions (color inverter, border-radius `!important`, px→em, background shorthand → `background-image`, absolute positioning removal) apply only when the input already contains inline styles. The Lua filter handles markdown AST transformations; CSS property rewriting would need a separate post-processor if your source uses style attributes extensively.
+
+---
+
+## TROUBLESHOOTING
+
+### Callouts render as plain `<blockquote>` instead of styled tables
+
+**Cause:** The `RR_CONVERT_SETTINGS` environment variable is not set, so the Lua filter cannot load callout type definitions (error, info, warning, etc.). Without these definitions, `normalize_callout_type()` returns `nil` and the BlockQuote handler falls through to default rendering.
+
+**Fix:** Always use `rr-convert.sh` which exports this variable automatically. If calling pandoc manually:
+```bash
+export RR_CONVERT_SETTINGS="/path/to/rr-convert.settings.lua"
+```
+
+### `Error parsing YAML metadata ... control characters are not allowed`
+
+**Cause:** Your markdown contains `---` inside blockquotes (common in Obsidian callouts used as section dividers). The sed preprocessing step injects `\x01` control characters for escaped bracket handling. When pandoc encounters `---`, it tries to parse preceding content as YAML frontmatter and chokes on the control characters.
+
+**Fix:** The `rr-convert.sh` script disables YAML metadata parsing via `-yaml_metadata_block` in the pandoc format string. If calling pandoc manually, add this extension:
+```bash
+pandoc --from 'markdown+fenced_divs-yaml_metadata_block' ...
+```
+
+### Escaped brackets `\[\[...\]\]` not rendering as literal `[[...]]`
+
+**Cause:** Running pandoc directly without the sed preprocessing step. Raw pandoc treats `\[` as an escaped `[` but cannot distinguish it from wiki-link `[[...]]` syntax.
+
+**Fix:** Always use `rr-convert.sh` which preprocesses `\[` → `\x01LB` and `\]` → `\x01RB` before pandoc, letting the Lua filter convert them back to literal brackets in output.

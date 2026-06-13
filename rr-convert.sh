@@ -57,13 +57,18 @@ case "$MODE" in
     ;;
 esac
 
+# Pandoc format: disable yaml_metadata_block to prevent --- inside blockquotes
+# (e.g. Obsidian callout section dividers) from triggering YAML parse errors
+# when combined with the \x01 control characters from bracket preprocessing.
+PANDOC_FROM='markdown+fenced_divs-yaml_metadata_block'
+
 # Preprocess: replace \[ with \x01LB and \] with \x01RB
 # This lets the Lua filter distinguish escaped brackets from wiki links
 if [ "$OUTPUT" = "-" ]; then
   sed -e 's/\\\[/\x01LB/g' -e 's/\\\]/\x01RB/g' "$INPUT" \
-    | pandoc --from 'markdown+fenced_divs' --to html --lua-filter="$FILTER"
+    | pandoc --from "$PANDOC_FROM" --to html --lua-filter="$FILTER"
 else
   sed -e 's/\\\[/\x01LB/g' -e 's/\\\]/\x01RB/g' "$INPUT" \
-    | pandoc --from 'markdown+fenced_divs' --to html --lua-filter="$FILTER" \
+    | pandoc --from "$PANDOC_FROM" --to html --lua-filter="$FILTER" \
     > "$OUTPUT"
 fi
