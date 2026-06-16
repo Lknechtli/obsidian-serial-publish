@@ -25,7 +25,7 @@ The script preprocesses `\[\[...\]\]` escape sequences so the Lua filter can dis
 
 ## Configuration
 
-All styling is controlled by `rr-convert.settings.lua`. Edit it to customize:
+All Royal Road styling is controlled by `rr-convert.settings.lua`. Edit it to customize:
 
 | Section | What it controls |
 |---|---|
@@ -37,6 +37,8 @@ All styling is controlled by `rr-convert.settings.lua`. Edit it to customize:
 | `doc_wrapper_style` | Document-level wrapper div CSS |
 
 The filter loads settings via the `RR_CONVERT_SETTINGS` environment variable (set automatically by `rr-convert.sh`).
+
+**Ghost mode styling:** The Ghost converter (`--mode ghost`) produces clean semantic HTML with class-based output — no inline styles. All visual styling is handled by your Ghost theme's CSS (e.g. `rr-theme.css` in the theme's `assets/css/ghost/` directory). The settings file is still used for callout type definitions (colors, symbols), but layout and typography come from the theme.
 
 ## Using as an AI Skill
 
