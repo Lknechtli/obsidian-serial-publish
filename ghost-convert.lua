@@ -419,14 +419,15 @@ local function convert_callout(callout_type, title, bq_content)
     -- Build the table body only (no header row, no outer wrapper)
     local table_body_only = build_table_html(baseType, nil, processed, false, false)
 
-    -- Build the summary (clickable title bar) — same content as a normal header row
-    local summary_html = escape_html(display_title)
-
-    local html = '<div class="gh-callout gh-callout--' .. baseType .. ' gh-callout--hidden">'
-    html = html .. '<details class="gh-callout-details gh-callout-table">'
-    html = html .. '<summary class="gh-callout-header" style="cursor: pointer;">' .. summary_html .. '</summary>'
+    local html = '<div class="gh-callout gh-callout--' .. baseType .. ' gh-callout--hidden" data-toggle="callout" style="cursor: pointer;">'
+    html = html .. '<div class="gh-callout-details">'
+    html = html .. '<div class="gh-callout-header">' .. escape_html(display_title) .. '</div>'
+    html = html .. '<div class="gh-callout-preview-wrapper">'
     html = html .. table_body_only
-    html = html .. '</details>'
+    html = html .. '<div class="gh-callout-preview-fade" style="background:linear-gradient(to bottom,transparent,#1a1a2e);"></div>'
+    html = html .. '<span class="gh-callout-expand-icon">&#x25BC;</span>'
+    html = html .. '</div>'
+    html = html .. '</div>'
     html = html .. '</div>'
     return pandoc.RawBlock("html", html)
   end
