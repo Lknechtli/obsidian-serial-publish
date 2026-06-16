@@ -278,6 +278,11 @@ All callout styling is configured in `rr-convert.settings.lua` under `callouts` 
 ```
 
 **Note:** Type variants with numeric suffixes (e.g., `task-1`) are normalized to their base type (`task`). Unknown types default to `info`.
+
+**Hidden callouts:** Append `-hidden` to any callout type (e.g., `[!info-hidden]`, `[!warning-hidden]`) to make it collapsible. Bare `[!hidden]` is shorthand for `[!info-hidden]`. Behavior differs by output mode:
+
+- **Royal Road (`--mode rr`):** Wraps the callout in a `<div class="spoiler-new">` container. RR renders this as a spoiler that users click to reveal.
+- **Ghost (`--mode ghost`):** Renders as a collapsed card showing the title bar and a thin preview strip of the body content with a fade gradient and expand chevron (▼). Clicking anywhere on the callout expands it to full size. Requires the theme's `calloutToggle.js` and matching CSS.
 ---
 
 ## 5. SAFE ELEMENTS & PROPERTIES (no conversion needed)
