@@ -37,6 +37,16 @@ Use `<span data-glitch="">` for a chromatic aberration text-shadow effect.
 
 <span data-glitch="">This text has a glitch effect</span>
 
+The glitch effect also works inside callouts:
+
+> [!error] Profile: Quincy Adams | Level 1
+> Race: Canadian Goose  |  Alignment: <span data-glitch="">Chaotic</span>
+>
+> ---
+>
+> <span data-glitch="">[Touch of Chaos]</span>
+> Passive — You radiate an unsettling aura.
+
 ---
 
 ## Paragraph Spacing (demo)
