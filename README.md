@@ -1,6 +1,6 @@
 # obsidian-serial-publish
 
-Convert Obsidian markdown to platform-safe HTML for serial fiction publishing. Currently supports **Royal Road**; more platforms planned.
+Convert Obsidian markdown to platform-safe output for serial fiction publishing. Supports **Royal Road** (HTML) and **Patreon** (plaintext + blockquotes).
 
 Uses a [Pandoc](https://pandoc.org) Lua filter for deterministic, reproducible conversion — no LLM guesswork.
 
@@ -12,15 +12,22 @@ Uses a [Pandoc](https://pandoc.org) Lua filter for deterministic, reproducible c
 ## Usage
 
 ```bash
-./rr-convert.sh input.md -o output.html
+./rr-convert.sh input.md -o output.html        # Royal Road (default, HTML)
+./rr-convert.sh input.md -o output.md --mode patreon  # Patreon (plaintext)
 ```
 
 The script preprocesses `\[\[...\]\]` escape sequences so the Lua filter can distinguish literal brackets from Obsidian wiki links, then pipes through Pandoc with the filter.
 
+### Modes
+
+- **`--mode rr`** (default): Royal Road HTML output with inline styles, headings as `<div>` elements, callouts as styled `<table>` elements
+- **`--mode patreon`**: Plaintext output with markdown-lite formatting (`**bold**`, `*italic*`, headings as `#`), callouts as blockquotes — suitable for pasting into Patreon's post editor
+
 ### Input / Output
 
 - Takes any `.md` file as input
-- Writes clean HTML to `-o output.html` (or stdout if omitted)
+- Royal Road mode: writes clean HTML to `-o output.html` (or stdout if omitted)
+- Patreon mode: writes plaintext to `-o output.md` (or stdout if omitted)
 - Does not modify the original markdown file
 
 ## Configuration
@@ -38,7 +45,7 @@ All Royal Road styling is controlled by `rr-convert.settings.lua`. Edit it to cu
 
 The filter loads settings via the `RR_CONVERT_SETTINGS` environment variable (set automatically by `rr-convert.sh`).
 
-**Ghost mode styling:** The Ghost converter (`--mode ghost`) produces clean semantic HTML with class-based output — no inline styles. All visual styling is handled by your Ghost theme's CSS (e.g. `rr-theme.css` in the theme's `assets/css/ghost/` directory). The settings file is still used for callout type definitions (colors, symbols), but layout and typography come from the theme.
+
 
 ## Using as an AI Skill
 

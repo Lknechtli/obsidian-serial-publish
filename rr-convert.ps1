@@ -1,23 +1,38 @@
 #!/usr/bin/env pwsh
-# rr-convert.ps1 — Convert Obsidian markdown to Royal Road-compatible HTML
+# rr-convert.ps1 — Convert Obsidian markdown to platform-compatible output
 # Windows PowerShell / pwsh script.
 #
-# Usage: .\rr-convert.ps1 input.md [-OutputFile output.html]
+# Usage: .\rr-convert.ps1 input.md [-OutputFile output] [-Mode rr|patreon]
 
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [string]$InputFile,
 
     [Parameter(Position = 1)]
-    [string]$OutputFile
+    [string]$OutputFile,
+
+    [Parameter()]
+    [ValidateSet("rr", "patreon")]
+    [string]$Mode = "rr"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$Filter = Join-Path $ScriptDir "rr-convert.lua"
 $Settings = Join-Path $ScriptDir "rr-convert.settings.lua"
+
+# Select filter and output format based on mode
+switch ($Mode) {
+    "rr" {
+        $Filter = Join-Path $ScriptDir "rr-convert.lua"
+        $PandocTo = "html"
+    }
+    "patreon" {
+        $Filter = Join-Path $ScriptDir "patreon-convert.lua"
+        $PandocTo = "plain"
+    }
+}
 
 # Validate inputs
 if (-not (Test-Path $InputFile)) {
@@ -62,7 +77,7 @@ $content = $content -replace '\\\]', $SOH_RB
 # Build pandoc arguments
 $pandocArgs = @(
     "--from", "markdown+fenced_divs",
-    "--to", "html",
+    "--to", $PandocTo,
     "--lua-filter", $Filter
 )
 

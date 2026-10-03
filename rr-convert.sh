@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# rr-convert.sh — Convert Obsidian markdown to Royal Road or Ghost-compatible HTML
+# rr-convert.sh — Convert Obsidian markdown to platform-compatible output
 # Preprocesses \[\[...\]\] escape sequences so the Lua filter can distinguish
 # them from wiki links.
 #
 # macOS / Linux. For Windows, use rr-convert.ps1 instead.
 #
-# Usage: ./rr-convert.sh input.md [-o output.html] [--mode rr|ghost]
-#   --mode rr     Royal Road output (default): inline styles, headings → divs
-#   --mode ghost  Ghost CMS output: semantic HTML, styled by theme CSS
+# Usage: ./rr-convert.sh input.md [-o output] [--mode rr|patreon]
+#   --mode rr        Royal Road output (default): HTML with inline styles
+#   --mode patreon   Patreon output: plaintext + blockquotes for paste
 
 set -euo pipefail
 
@@ -39,36 +39,47 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$INPUT" ]; then
-  echo "Usage: $0 input.md [-o output.html] [--mode rr|ghost]" >&2
+  echo "Usage: $0 input.md [-o output] [--mode rr|patreon]" >&2
   exit 1
 fi
 
-# Select filter based on mode
+# Select filter and output format based on mode
 case "$MODE" in
   rr)
     FILTER="$SCRIPT_DIR/rr-convert.lua"
+    PANDOC_TO="html"
     ;;
-  ghost)
-    FILTER="$SCRIPT_DIR/ghost-convert.lua"
+  patreon)
+    FILTER="$SCRIPT_DIR/patreon-convert.lua"
+    PANDOC_TO="plain"
     ;;
   *)
-    echo "Error: unknown mode '$MODE'. Use 'rr' or 'ghost'." >&2
+    echo "Error: unknown mode '$MODE'. Use 'rr' or 'patreon'." >&2
     exit 1
     ;;
 esac
 
-# Pandoc format: disable yaml_metadata_block to prevent --- inside blockquotes
-# (e.g. Obsidian callout section dividers) from triggering YAML parse errors
-# when combined with the \x01 control characters from bracket preprocessing.
+# Pandoc format: use fenced_divs for callout support, disable yaml_metadata_block
+# to prevent --- inside callouts (e.g. Obsidian callout section dividers) from
+# triggering YAML parse errors when combined with \x01 control characters.
 PANDOC_FROM='markdown+fenced_divs-yaml_metadata_block'
 
-# Preprocess: replace \[ with \x01LB and \] with \x01RB
-# This lets the Lua filter distinguish escaped brackets from wiki links
+# Preprocess pipeline:
+# 1. Strip YAML frontmatter (--- ... ---) to prevent --- inside callouts
+#    from being misinterpreted as YAML boundaries
+# 2. Replace \[ with \x01LB and \] with \x01RB so the Lua filter can
+#    distinguish escaped brackets from wiki links
+preprocess() {
+  # Remove YAML frontmatter if present (leading --- ... ---)
+  awk 'BEGIN{in_yaml=0; past_yaml=0} /^---$/{if(!past_yaml){if(!in_yaml){in_yaml=1;next}else{past_yaml=1;in_yaml=0;next}}} in_yaml{next} !in_yaml{print}' | \
+  sed -e 's/\\\[/\x01LB/g' -e 's/\\\]/\x01RB/g'
+}
+
 if [ "$OUTPUT" = "-" ]; then
-  sed -e 's/\\\[/\x01LB/g' -e 's/\\\]/\x01RB/g' "$INPUT" \
-    | pandoc --from "$PANDOC_FROM" --to html --lua-filter="$FILTER"
+  cat "$INPUT" | preprocess \
+    | pandoc --from "$PANDOC_FROM" --to "$PANDOC_TO" --lua-filter="$FILTER"
 else
-  sed -e 's/\\\[/\x01LB/g' -e 's/\\\]/\x01RB/g' "$INPUT" \
-    | pandoc --from "$PANDOC_FROM" --to html --lua-filter="$FILTER" \
+  cat "$INPUT" | preprocess \
+    | pandoc --from "$PANDOC_FROM" --to "$PANDOC_TO" --lua-filter="$FILTER" \
     > "$OUTPUT"
 fi

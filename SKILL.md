@@ -8,19 +8,21 @@ user_invocable: true
 
 **Recommended approach:** Use the bundled `rr-convert.sh` script for deterministic, testable conversion:
 
-    ./rr-convert.sh input.md -o output.html          # Royal Road (default)
-    ./rr-convert.sh input.md -o output.html --mode ghost   # Ghost CMS
+    ./rr-convert.sh input.md -o output.html              # Royal Road (default)
+    ./rr-convert.sh input.md -o output.md --mode patreon  # Patreon
 
-This handles `\[\[...\]\]` escape preprocessing and runs the appropriate Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
+This handles `\[\[...\]\]` escape preprocessing and runs the Lua filter with pandoc. The script swaps escaped brackets to control characters before pandoc parses them, so the filter can distinguish literal brackets from wiki links.
 
 ### Output Modes
 
-| Mode | Flag | Headings | Inline styles | Use case |
-|---|---|---|---|---|
-| Royal Road (default) | `--mode rr` | `<div>` with inline CSS | Yes — required for RR parser | Publishing on Royal Road |
-| Ghost CMS | `--mode ghost` | Semantic `<h1>`–`<h6>` | No — theme CSS handles styling | Ghost CMS posts |
+| Mode | Flag | Format | Use case |
+|---|---|---|---|
+| Royal Road (default) | `--mode rr` | HTML with inline styles | Publishing on Royal Road |
+| Patreon | `--mode patreon` | Plaintext + blockquotes | Pasting into Patreon's editor |
 
-**Ghost mode** produces clean semantic HTML wrapped in `<div class="rr-theme">`. The Ghost theme's CSS custom properties (`--read-font-size`, `--read-line-height`, etc.) control all typography. Callout tables retain their inline styles since Ghost has no native callout support.
+**Patreon mode** produces clean plaintext with markdown-lite formatting (`**bold**`, `*italic*`, `[links](url)`) and blockquotes for callouts. Headings use `#` markers. The output can be pasted directly into Patreon's post editor.
+
+
 
 **Note:** The SKILL.md below documents the conversion rules that the Lua filter implements. For new conversions, always prefer running the lua filter over instructing an LLM to manually apply these rules.
 
@@ -279,10 +281,7 @@ All callout styling is configured in `rr-convert.settings.lua` under `callouts` 
 
 **Note:** Type variants with numeric suffixes (e.g., `task-1`) are normalized to their base type (`task`). Unknown types default to `info`.
 
-**Hidden callouts:** Append `-hidden` to any callout type (e.g., `[!info-hidden]`, `[!warning-hidden]`) to make it collapsible. Bare `[!hidden]` is shorthand for `[!info-hidden]`. Behavior differs by output mode:
-
-- **Royal Road (`--mode rr`):** Wraps the callout in a `<div class="spoiler-new">` container. RR renders this as a spoiler that users click to reveal.
-- **Ghost (`--mode ghost`):** Renders as a collapsed card showing the title bar and a thin preview strip of the body content with a fade gradient and expand chevron (▼). Clicking anywhere on the callout expands it to full size. Requires the theme's `calloutToggle.js` and matching CSS.
+**Hidden callouts:** Append `-hidden` to any callout type (e.g., `[!info-hidden]`, `[!warning-hidden]`) to make it collapsible. Bare `[!hidden]` is shorthand for `[!info-hidden]`. On Royal Road, hidden callouts are wrapped in `<div class="spoiler-new">` which renders as a click-to-reveal spoiler.
 ---
 
 ## 5. SAFE ELEMENTS & PROPERTIES (no conversion needed)
