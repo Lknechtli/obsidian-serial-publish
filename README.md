@@ -30,6 +30,18 @@ The script preprocesses `\[\[...\]\]` escape sequences so the Lua filter can dis
 - Patreon mode: writes plaintext to `-o output.md` (or stdout if omitted)
 - Does not modify the original markdown file
 
+### Wordcount fixer
+
+`fix-wordcount.sh` corrects the `wordcount:` value in a file's YAML frontmatter to match the actual body text:
+
+```bash
+./fix-wordcount.sh chapter.md [more.md ...]
+```
+
+Counting rule: plain English words only. The YAML frontmatter is dropped, then HTML tags, Obsidian callout type tags (`[!error]`, `[!info]`, …), line-leading blockquote/heading markers, table pipes, emphasis markers, backticks, and link syntax are stripped (link text kept, backslash escapes unescaped). Tokens are split on whitespace, leading/trailing punctuation is stripped from each, and a token counts only if it still contains at least one letter or digit. So `---`, `…`, `[!error]`, and standalone `/`/`-` tokens are excluded, while visible prose is included — stylized words (`HONK`, `r-iiiii-p`), numbers (`3/3`, `+1`), and callout titles / stat-block lines (`Chaos +1`, `Race: Canadian Goose | Alignment: Chaotic`).
+
+Files without frontmatter, or without a `wordcount:` line, are skipped with a warning (the field is never added). Files whose count is already correct are left untouched, so re-runs cause no mtime churn. Safe to run after `smartify` — quote/ellipsis normalization does not change token counts.
+
 ## Configuration
 
 All Royal Road styling is controlled by `rr-convert.settings.lua`. Edit it to customize:
